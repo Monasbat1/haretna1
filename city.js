@@ -1393,10 +1393,11 @@ function bigFlagCloth(code) {
 const townFx = []; // [material, strength] of the landmarks' night lights
 // The royal portraits over Petra (models/jordan.js ROYAL): the gold frames are
 // baked; the pictures (public/img), the names and «المملكة الأردنية الهاشمية» are drawn here.
+let NAMES = {}; // the names under the portraits, set from the admin panel (cfg.names: picture file -> text)
 const ROYAL_PICTURES = { king: IMG('royal-king.jpg'), prince: IMG('royal-crown-prince.jpg') };
-const JORDAN_ROYAL = { model: royalFrames, R: ROYAL, pictures: ROYAL_PICTURES, words: '👑 المملكة الأردنية الهاشمية 👑', banner: ['#8e1426', '#5e0c18'], back: '#2a1414', plaque: '#1d2433' };
+const JORDAN_ROYAL = { model: royalFrames, R: ROYAL, pictures: ROYAL_PICTURES, keys: { king: 'royal-king.jpg', prince: 'royal-crown-prince.jpg' }, words: '👑 المملكة الأردنية الهاشمية 👑', banner: ['#8e1426', '#5e0c18'], back: '#2a1414', plaque: '#1d2433' };
 // The same on top of the Kingdom Centre (models/saudi.js SAUDI_ROYAL): King Salman and the Crown Prince.
-const SAUDI_PORTRAITS = { model: saudiFrames, R: SAUDI_ROYAL, pictures: { king: IMG('saudi-king.jpg'), prince: IMG('saudi-crown-prince.jpg') },
+const SAUDI_PORTRAITS = { model: saudiFrames, R: SAUDI_ROYAL, keys: { king: 'saudi-king.jpg', prince: 'saudi-crown-prince.jpg' }, pictures: { king: IMG('saudi-king.jpg'), prince: IMG('saudi-crown-prince.jpg') },
   words: '👑 المملكة العربية السعودية 👑', banner: ['#0f6e3a', '#09502a'], back: '#0b1f14', plaque: '#0b3d22', plaqueSize: 76 };
 function buildRoyal(g, set = JORDAN_ROYAL) {
   const { R: ROYAL, pictures: ROYAL_PICTURES } = set;
@@ -1421,7 +1422,7 @@ function buildRoyal(g, set = JORDAN_ROYAL) {
     const pic = new THREE.Mesh(new THREE.PlaneGeometry(f.w, f.h), new THREE.MeshBasicMaterial({ map: tex }));
     pic.position.set(f.x, f.y, ROYAL.z);
     const P = ROYAL.plaque, plaque = textBoard(1280, Math.round(1280 * P.h / P.w), P.w, P.h);
-    drawPlaque(plaque.userData.ctx, plaque.userData.canvas.width, plaque.userData.canvas.height, f.plaque, { bg: set.plaque, fg: '#f6e7b8', size: set.plaqueSize || 96 });
+    drawPlaque(plaque.userData.ctx, plaque.userData.canvas.width, plaque.userData.canvas.height, NAMES[set.keys[f.who]] || f.plaque, { bg: set.plaque, fg: '#f6e7b8', size: set.plaqueSize || 96 });
     plaque.userData.tex.needsUpdate = true;
     plaque.position.set(f.x, f.y + P.dy, ROYAL.z + 0.06); // just in front of its gold plate
     g.add(pic, plaque);
@@ -2219,7 +2220,7 @@ function buildPresident(g) {
   const pic = new THREE.Mesh(new THREE.PlaneGeometry(P.w, P.h), new THREE.MeshBasicMaterial({ map: tex }));
   pic.position.set(P.x, P.y, P.z);
   const Q = P.plaque, plaque = textBoard(1280, Math.round(1280 * Q.h / Q.w), Q.w, Q.h);
-  drawPlaque(plaque.userData.ctx, plaque.userData.canvas.width, plaque.userData.canvas.height, Q.text, { bg: '#0f3d2a', fg: '#f6e7b8', size: 104 });
+  drawPlaque(plaque.userData.ctx, plaque.userData.canvas.width, plaque.userData.canvas.height, NAMES['syria-president.jpg'] || Q.text, { bg: '#0f3d2a', fg: '#f6e7b8', size: 104 });
   plaque.userData.tex.needsUpdate = true;
   plaque.position.set(P.x, P.y + Q.dy, P.z + 0.06);
   const B = P.banner, banner = textBoard(2048, Math.round(2048 * B.h / B.w), B.w, B.h);
@@ -2260,15 +2261,16 @@ function buildSarout(g) {
   const pic = new THREE.Mesh(new THREE.PlaneGeometry(P.w, P.h), new THREE.MeshBasicMaterial({ map: tex }));
   pic.position.set(P.x, P.y, P.z);
   const Q = P.plaque, plaque = textBoard(1280, Math.round(1280 * Q.h / Q.w), Q.w, Q.h);
+  const QL = NAMES['sarout.jpg'] ? (NAMES['sarout.jpg'].includes('|') ? NAMES['sarout.jpg'].split('|') : ['', NAMES['sarout.jpg']]) : Q.lines;
   { const { ctx: b, canvas: bc } = plaque.userData;
     b.fillStyle = '#0f3d2a'; b.beginPath(); b.roundRect(0, 0, bc.width, bc.height, 26); b.fill();
     b.direction = 'rtl'; b.textAlign = 'center'; b.textBaseline = 'middle';
     b.fillStyle = '#ff8a8a'; b.font = '800 96px Tajawal, system-ui, sans-serif';
-    b.fillText(Q.lines[0], bc.width / 2, bc.height * 0.3);
+    b.fillText(QL[0], bc.width / 2, bc.height * 0.3);
     b.fillStyle = '#f6e7b8';
     let size = 124;
-    do { b.font = `800 ${size}px Tajawal, system-ui, sans-serif`; size -= 2; } while (b.measureText(Q.lines[1]).width > bc.width - 80 && size > 40);
-    b.fillText(Q.lines[1], bc.width / 2, bc.height * 0.68);
+    do { b.font = `800 ${size}px Tajawal, system-ui, sans-serif`; size -= 2; } while (b.measureText(QL[1]).width > bc.width - 80 && size > 40);
+    b.fillText(QL[1], bc.width / 2, bc.height * 0.68);
     plaque.userData.tex.needsUpdate = true; }
   plaque.position.set(P.x, P.y + Q.dy, P.z + 0.06);
   s.add(frame, pic, plaque);
@@ -3709,9 +3711,10 @@ async function start() {
     const cfg = await firstConfig;
     rev = cfg.rev;
     $('#account').textContent = '@' + cfg.account;
-    $('#account').href = 'https://www.instagram.com/' + encodeURIComponent(cfg.account) + '/';
+    $('#account').href = 'https://www.instagram.com/hartna.city?dmpr=NWNueWcya2c0OHZx';
     setAccount(cfg.account);
     reels = cfg.reels || [];
+    NAMES = cfg.names || {};
     countryNames = cfg.countries || {};
     race = cfg.race || null;
     if (cfg.titles) titles = { police: {}, ...cfg.titles };
