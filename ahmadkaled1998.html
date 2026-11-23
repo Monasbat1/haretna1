@@ -1,87 +1,129 @@
 <!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>لوحة إدارة حارتنا</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>لوحة إدارة حارتنا</title>
 <style>
 :root{--bg:#eef6ff;--p:#1f6feb;--t:#16202c;--b:#d0dae6}
 *{box-sizing:border-box}body{margin:0;font-family:Tajawal,system-ui,sans-serif;background:var(--bg);color:var(--t);padding:10px}
 .card{background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px #0001}
-button{background:var(--p);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:inherit;margin:2px}
-button.g{background:#e6edf5;color:var(--t)}button.r{background:#d73a49;padding:4px 9px}
+button{background:var(--p);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:inherit;margin:2px;cursor:pointer}
+button.g{background:#e6edf5;color:var(--t)}button.r{background:#d73a49;padding:4px 9px}button.on{outline:3px solid #0a3d91}
 input,textarea,select{width:100%;padding:8px;border:1px solid var(--b);border-radius:8px;font:inherit;margin:3px 0}
-.tabs{display:flex;gap:4px;overflow:auto;margin-bottom:8px}
-.w{overflow:auto;max-height:58vh}table{border-collapse:collapse;width:100%;font-size:13px}
-td,th{border:1px solid var(--b);padding:3px;white-space:nowrap;background:#fff}td input{min-width:90px;margin:0;padding:4px}
-textarea{font-family:monospace;direction:ltr;min-height:300px}
+.tabs{display:flex;gap:4px;overflow:auto}.w{overflow:auto;max-height:60vh}.row{display:flex;gap:6px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid var(--b);padding:3px;white-space:nowrap;background:#fff}
+td input,td select{min-width:70px;margin:0;padding:4px}td input[type=checkbox]{min-width:0;width:auto}
+textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}small{color:#667}
+.im{display:inline-block;width:130px;margin:4px;text-align:center;font-size:12px;vertical-align:top}.im img{width:100%;height:90px;object-fit:cover;border-radius:8px;background:#ddd}
 #msg{position:fixed;bottom:10px;left:10px;right:10px;background:#16202c;color:#fff;padding:10px;border-radius:10px;display:none;z-index:9}
 </style></head><body>
-<div class="card"><b>🏠 لوحة إدارة حارتنا</b>
-<div class="tabs"><button onclick="tab('cfg')">الإعدادات</button><button onclick="tab('houses')">البيوت</button><button onclick="tab('pub')">النشر</button><button class="g" onclick="load()">↻ إعادة تحميل</button></div></div>
+<div class="card"><b>🏠 لوحة إدارة حارتنا</b> <small id="sum"></small>
+<div class="tabs" id="tabs"></div></div>
 
-<div id="t_cfg" class="card"><b>api/config</b> (JSON)
-<textarea id="cfgText"></textarea>
-<button onclick="applyCfg()">تطبيق</button></div>
-
-<div id="t_houses" class="card" style="display:none">
-<input id="q" placeholder="🔍 بحث في البيوت" oninput="S.filter=this.value;S.page=0;renderH()">
+<div id="t_u" class="card">
+<div class="row"><input id="q" placeholder="🔍 اسم الحساب أو الرقم" oninput="S.f=this.value;S.page=0;renderU()">
+<select id="fl" onchange="S.lv=this.value;S.page=0;renderU()"><option value="">كل المستويات</option><option value="0">محذوف</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4 برج</option><option value="v">فيلا 👑</option></select>
+<input id="fc" placeholder="الدولة (SY, JO..)" oninput="S.co=this.value.toUpperCase();S.page=0;renderU()"></div>
 <div id="hInfo"></div>
-<button class="g" onclick="S.page=Math.max(0,S.page-1);renderH()">◀ السابق</button>
-<button class="g" onclick="S.page++;renderH()">التالي ▶</button>
-<button onclick="addRow()">＋ بيت جديد</button>
-<div class="w"><table id="hTable"></table></div>
-<hr>إحصاء حسب عمود: <select id="sc" onchange="stat()"></select><div id="sOut"></div></div>
+<button class="g" onclick="S.page=Math.max(0,S.page-1);renderU()">◀</button><button class="g" onclick="S.page++;renderU()">▶</button>
+<button onclick="addUser()">＋ مستخدم جديد</button>
+<details><summary>⚙️ إجراء جماعي على نتائج البحث</summary>
+<div class="row"><select id="bl"><option value="1">مستوى 1</option><option value="2">مستوى 2</option><option value="3">مستوى 3</option><option value="4">مستوى 4 (برج)</option></select><button onclick="bulk('lv')">تطبيق المستوى</button>
+<button onclick="bulk('vi')">جعلهم فيلا 👑</button><button class="g" onclick="bulk('nv')">إلغاء الفيلا</button>
+<input id="bc" placeholder="رمز دولة"><button onclick="bulk('co')">تغيير الدولة</button><button class="r" onclick="bulk('del')">حذف الكل</button></div></details>
+<div class="w"><table id="hTable"></table></div></div>
 
-<div id="t_pub" class="card" style="display:none"><b>النشر إلى GitHub</b>
-<input id="o" placeholder="اسم الحساب" value="Monasbat1">
-<input id="r" placeholder="اسم المستودع" value="haretna1">
-<input id="b" placeholder="الفرع" value="main">
-<input id="tk" type="password" placeholder="Token (ghp_...)">
-<button class="g" onclick="saveSet();msg('تم الحفظ على هذا الجهاز')">حفظ الإعدادات</button>
-<button class="g" onclick="forget()">نسيان الـ Token</button><hr>
-<button onclick="pub('c')">نشر الإعدادات</button>
-<button onclick="pub('h')">نشر البيوت</button>
-<button onclick="pub('a')">نشر الكل</button><hr>
-<button class="g" onclick="dl('config')">تنزيل config</button>
-<button class="g" onclick="dl('houses')">تنزيل houses</button></div>
+<div id="t_p" class="card" style="display:none"><b>النقاط والرصيد والمتجر</b>
+<div class="row"><label>رصيد المدينة 🪙<input id="coins" type="number"></label><label>نقاط كل بيت جديد<input id="perHouse" type="number"></label><label>اسم الحساب<input id="acc"></label></div>
+<b>المتجر</b><div class="w" style="max-height:30vh"><table id="shopT"></table></div><button class="g" onclick="shopAdd()">＋ معلم</button>
+<button onclick="applyP()">تطبيق</button><hr>
+<b>سباق الأسبوع</b><div class="row"><label>الأسبوع<input id="rw" type="number"></label><label>من<input id="rf" type="number"></label></div>
+<button class="g" onclick="newRace()">بدء سباق جديد (7 أيام)</button>
+<hr><b>متقدم: كل الإعدادات (JSON) — المعالم، العناوين، الدول، الريلز...</b><textarea id="cfgText"></textarea><button onclick="applyCfg()">تطبيق JSON</button></div>
+
+<div id="t_i" class="card" style="display:none"><b>الصور</b> <small>اختر ملفاً لاستبدال صورة، ثم انشر</small><div id="imgs"></div>
+<hr><input id="nn" placeholder="اسم ملف جديد مثل new.jpg"><input id="nf" type="file" accept="image/*"><button onclick="newImg()">＋ إضافة صورة</button></div>
+
+<div id="t_s" class="card" style="display:none"><b>النشر إلى GitHub</b>
+<input id="o" placeholder="اسم الحساب" value="Monasbat1"><input id="r" placeholder="المستودع" value="haretna1"><input id="b" placeholder="الفرع" value="main">
+<input id="tk" type="password" placeholder="Token (ghp_...) صلاحية Contents: write">
+<button class="g" onclick="saveSet();msg('تم الحفظ')">حفظ الإعدادات</button><button class="g" onclick="forget()">نسيان Token</button><hr>
+<button onclick="pub()">🚀 نشر كل التغييرات</button><hr>
+<button class="g" onclick="dl('config')">تنزيل config</button><button class="g" onclick="dl('houses')">تنزيل houses</button></div>
 <div id="msg"></div>
 <script>
-const $=s=>document.querySelector(s);
-const S={cfg:null,houses:null,hKey:null,rows:[],page:0,filter:''},PER=40;
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',4000)}
-function tab(n){['cfg','houses','pub'].forEach(x=>$('#t_'+x).style.display=x==n?'block':'none')}
+const $=s=>document.querySelector(s),PER=40,TOWN=['JO','PS','LB','IQ','MA','EG','YE','SA'];
+const S={cfg:null,hd:null,rows:[],page:0,f:'',lv:'',co:'',imgs:{},dirty:false};
+const IMGS=['club-faisaly.png','club-wehdat.png','royal-crown-prince.jpg','royal-king.jpg','sarout.jpg','saudi-crown-prince.jpg','saudi-king.jpg','syria-president.jpg'];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',5000)}
+const TABS={u:'👥 المستخدمون',p:'🪙 النقاط والإعدادات',i:'🖼️ الصور',s:'🚀 النشر'};
+$('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-t="${k}" onclick="tab('${k}')">${v}</button>`).join('')+'<button class="g" onclick="load()">↻</button>';
+function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='i')renderI()}
 async function load(){try{
- const [c,h]=await Promise.all(['api/config','api/houses'].map(u=>fetch(u+'?_='+Date.now()).then(r=>{if(!r.ok)throw Error(u+' '+r.status);return r.text()})));
- S.cfg=JSON.parse(c);S.houses=JSON.parse(h);S.hKey=null;let a=S.houses;
- if(!Array.isArray(a)){S.hKey=Object.keys(a).find(k=>Array.isArray(a[k]));a=S.hKey?a[S.hKey]:[];if(!S.hKey)msg('تركيبة البيوت غير متوقعة، أرسلها للمطوّر')}
- S.rows=a;$('#cfgText').value=JSON.stringify(S.cfg,null,2);renderH();msg('تم التحميل ✓ البيوت: '+S.rows.length);
-}catch(e){msg('خطأ: '+e.message)}}
-function cols(){const s=new Set();S.rows.slice(0,100).forEach(r=>r&&typeof r=='object'&&Object.keys(r).forEach(k=>{if(r[k]===null||typeof r[k]!='object')s.add(k)}));return[...s]}
-function view(){const f=S.filter.toLowerCase();return S.rows.map((r,i)=>[r,i]).filter(([r])=>!f||JSON.stringify(r).toLowerCase().includes(f))}
-function renderH(){const C=cols(),V=view(),P=Math.max(1,Math.ceil(V.length/PER));
- if(S.page>=P)S.page=P-1;const sl=V.slice(S.page*PER,S.page*PER+PER);
- $('#hInfo').textContent=`النتائج ${V.length} من ${S.rows.length} — صفحة ${S.page+1}/${P}`;
- $('#hTable').innerHTML='<tr><th></th>'+C.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>'+sl.map(([r,i])=>`<tr><td><button class="r" data-del="${i}">✕</button></td>`+C.map(c=>`<td><input data-i="${i}" data-c="${esc(c)}" value="${esc(r[c]??'')}"></td>`).join('')+'</tr>').join('');
- $('#sc').innerHTML=C.map(c=>`<option>${esc(c)}</option>`).join('');stat()}
-function stat(){const c=$('#sc').value;if(!c)return;const m={};S.rows.forEach(r=>{const v=r&&r[c];m[v]=(m[v]||0)+1});
- $('#sOut').textContent=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([k,v])=>k+': '+v).join(' | ')}
-$('#hTable').addEventListener('change',e=>{const t=e.target;if(t.dataset.i===undefined)return;const r=S.rows[+t.dataset.i],k=t.dataset.c,o=r[k];let v=t.value;
- if(typeof o=='number'&&v!==''&&!isNaN(v))v=Number(v);else if(typeof o=='boolean')v=v=='true';r[k]=v});
-$('#hTable').addEventListener('click',e=>{const t=e.target.closest('[data-del]');if(t&&confirm('حذف هذا البيت؟')){S.rows.splice(+t.dataset.del,1);renderH()}});
-function addRow(){const n={};const f=S.rows[0]||{};Object.keys(f).forEach(k=>n[k]=typeof f[k]=='number'?0:typeof f[k]=='boolean'?false:'');S.rows.unshift(n);S.filter='';$('#q').value='';S.page=0;renderH()}
-function applyCfg(){try{S.cfg=JSON.parse($('#cfgText').value);msg('تم التطبيق ✓ اذهب إلى النشر')}catch(e){msg('JSON غير صالح: '+e.message)}}
+ const [c,h]=await Promise.all(['api/config','api/houses'].map(u=>fetch(u+'?_='+Date.now()).then(r=>{if(!r.ok)throw Error(u+' '+r.status);return r.json()})));
+ S.cfg=c;S.hd=h;let a=h.houses||[],cut=0;while(a.length&&!Array.isArray(a[0])){a=a.slice(1);cut++}
+ a=a.filter((r,i)=>Array.isArray(r)||(cut++,false));S.rows=a;if(cut){S.dirty=true;msg('تم تنظيف '+cut+' صف تالف تلقائياً، انشر ليُحفظ')}
+ renderU();fillP();sum();if(!cut)msg('تم التحميل ✓')}catch(e){msg('خطأ: '+e.message)}}
+function sum(){const a=S.rows,live=a.filter(r=>r[1]).length;$('#sum').textContent=`— ${live} مستخدم فعّال / ${a.length} خانة | 🪙 ${S.cfg.coins} | rev ${S.cfg.rev}`}
+function view(){const f=S.f.trim().toLowerCase();return S.rows.filter(r=>{
+ if(f&&!(String(r[1]).toLowerCase().includes(f)||String(r[0])===f))return false;
+ if(S.lv==='v'&&r[6]!==1)return false;if(S.lv!==''&&S.lv!=='v'&&String(r[2])!==S.lv)return false;
+ if(S.co&&r[3]!==S.co)return false;return true})}
+function renderU(){const V=view(),P=Math.max(1,Math.ceil(V.length/PER));if(S.page>=P)S.page=P-1;
+ $('#hInfo').textContent=`النتائج ${V.length} — صفحة ${S.page+1}/${P}`;
+ $('#hTable').innerHTML='<tr><th></th><th>#</th><th>الحساب</th><th>المستوى</th><th>الدولة</th><th>الحارة</th><th>فيلا</th></tr>'+
+ V.slice(S.page*PER,S.page*PER+PER).map(r=>{const i=r[0]-1;return `<tr class="${r[1]?'':'dim'}"><td><button class="r" data-d="${i}">✕</button></td><td>${r[0]}</td>
+ <td><input data-i="${i}" data-k="1" value="${esc(r[1])}"></td>
+ <td><select data-i="${i}" data-k="2">${[0,1,2,3,4].map(l=>`<option value="${l}"${l==r[2]?' selected':''}>${l?l:'محذوف'}</option>`).join('')}</select></td>
+ <td><input data-i="${i}" data-k="3" value="${esc(r[3])}" maxlength="2"></td><td><input data-i="${i}" data-k="4" value="${esc(r[4])}" maxlength="2"></td>
+ <td><input type="checkbox" data-i="${i}" data-k="6"${r[6]===1?' checked':''}></td></tr>`}).join('')}
+$('#hTable').addEventListener('change',e=>{const t=e.target,i=t.dataset.i;if(i===undefined)return;const r=S.rows[+i],k=+t.dataset.k;
+ if(k==6)r[6]=t.checked?1:0;else if(k==2){r[2]=+t.value;if(!r[2])r[1]=''}else if(k==1){r[1]=t.value.trim().replace(/^@+/,'');if(r[1]&&!r[2])r[2]=1;if(!r[1])r[2]=0}
+ else r[k]=t.value.trim().toUpperCase();S.dirty=true;sum();if(k==1||k==2)renderU()});
+// الحذف = تفريغ الخانة (لا نزيل الصف أبداً حتى لا تتحرك بيوت الآخرين)
+function wipe(r){r[1]='';r[2]=0;r[3]='';r[4]='';r[5]=0;r[6]=0}
+$('#hTable').addEventListener('click',e=>{const t=e.target.closest('[data-d]');if(t&&confirm('حذف هذا المستخدم؟ (تبقى خانته فارغة)')){wipe(S.rows[+t.dataset.d]);S.dirty=true;renderU();sum()}});
+function addUser(){const u=(prompt('اسم الحساب (إنستغرام):')||'').trim().replace(/^@+/,'');if(!u)return;
+ if(S.rows.some(r=>r[1].toLowerCase()==u.toLowerCase()))return msg('الحساب موجود مسبقاً');
+ const cc=(prompt('رمز الدولة (SY, JO, PS, LB...):','SY')||'SY').trim().toUpperCase();
+ S.rows.push([S.rows.length+1,u,1,cc,TOWN.includes(cc)?cc:'',0,0]);S.dirty=true;S.f=u;$('#q').value=u;renderU();sum();msg('تمت الإضافة (آخر الخريطة)')}
+function bulk(a){const V=view();if(!V.length)return;if(V.length>200&&!confirm('سيُطبّق على '+V.length+' حساب. متأكد؟'))return;
+ if(a=='del'&&!confirm('حذف '+V.length+' مستخدم؟'))return;
+ V.forEach(r=>{if(a=='lv'&&r[1])r[2]=+$('#bl').value;if(a=='vi'&&r[1])r[6]=1;if(a=='nv')r[6]=0;if(a=='co'&&r[1])r[3]=$('#bc').value.trim().toUpperCase();if(a=='del')wipe(r)});
+ S.dirty=true;renderU();sum();msg('تم على '+V.length)}
+
+function fillP(){if(!S.cfg)return;const c=S.cfg;$('#coins').value=c.coins??0;$('#perHouse').value=c.perHouse??0;$('#acc').value=c.account||'';
+ $('#rw').value=c.race?.week??1;$('#rf').value=c.race?.from??0;$('#cfgText').value=JSON.stringify(c,null,2);
+ $('#shopT').innerHTML='<tr><th></th><th>النوع</th><th>الاسم</th><th>السعر</th></tr>'+(c.shop||[]).map((s,i)=>`<tr><td><button class="r" onclick="shopDel(${i})">✕</button></td>
+ <td><input data-s="${i}" data-k="type" value="${esc(s.type)}"></td><td><input data-s="${i}" data-k="name" value="${esc(s.name)}"></td><td><input data-s="${i}" data-k="price" type="number" value="${s.price}"></td></tr>`).join('')}
+function shopAdd(){(S.cfg.shop=S.cfg.shop||[]).push({type:'park',name:'معلم جديد',price:1000});S.dirty=true;fillP()}
+function shopDel(i){S.cfg.shop.splice(i,1);S.dirty=true;fillP()}
+$('#shopT').addEventListener('change',e=>{const t=e.target;if(t.dataset.s===undefined)return;S.cfg.shop[+t.dataset.s][t.dataset.k]=t.dataset.k=='price'?+t.value:t.value;S.dirty=true});
+function applyP(){const c=S.cfg;c.coins=+$('#coins').value||0;c.perHouse=+$('#perHouse').value||0;c.account=$('#acc').value.trim()||c.account;
+ c.race=c.race||{};c.race.week=+$('#rw').value||1;c.race.from=+$('#rf').value||0;S.dirty=true;fillP();sum();msg('تم التطبيق ✓ اذهب إلى النشر')}
+function newRace(){const c=S.cfg,n=Date.now();c.race={...(c.race||{}),week:(c.race?.week||0)+1,start:n,end:n+6048e5,from:S.rows.length,last:null,podium:null};S.dirty=true;fillP();msg('سباق جديد ✓')}
+function applyCfg(){try{S.cfg=JSON.parse($('#cfgText').value);S.dirty=true;fillP();sum();msg('تم التطبيق ✓')}catch(e){msg('JSON غير صالح: '+e.message)}}
+
+function renderI(){$('#imgs').innerHTML=[...new Set([...IMGS,...Object.keys(S.imgs)])].map(n=>`<div class="im"><img id="p_${esc(n)}" src="${S.imgs[n]?'data:image/*;base64,'+S.imgs[n]:'img/'+esc(n)+'?_='+Date.now()}"><div>${esc(n)}${S.imgs[n]?' ✱':''}</div>
+ <input type="file" accept="image/*" onchange="pick('${esc(n)}',this.files[0])"></div>`).join('')}
+function rd(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(',')[1]);r.onerror=no;r.readAsDataURL(f)})}
+async function pick(n,f){if(!f)return;if(f.size>5e6)return msg('الصورة أكبر من 5MB');S.imgs[n]=await rd(f);S.dirty=true;renderI();msg('جاهزة للنشر: '+n)}
+function newImg(){const n=$('#nn').value.trim().replace(/[^\w.\-]/g,''),f=$('#nf').files[0];if(!n||!f)return msg('اكتب الاسم واختر ملفاً');pick(n,f)}
+
 function saveSet(){try{['o','r','b','tk'].forEach(k=>localStorage.setItem('adm_'+k,$('#'+k).value))}catch(e){}}
 function forget(){try{localStorage.removeItem('adm_tk')}catch(e){}$('#tk').value='';msg('تم')}
 try{['o','r','b','tk'].forEach(k=>{const v=localStorage.getItem('adm_'+k);if(v)$('#'+k).value=v})}catch(e){}
 const G=()=>({o:$('#o').value.trim(),r:$('#r').value.trim(),b:$('#b').value.trim()||'main',t:$('#tk').value.trim()});
 async function gh(p,opt={}){const g=G();const res=await fetch(`https://api.github.com/repos/${g.o}/${g.r}/${p}`,{...opt,headers:{Authorization:'Bearer '+g.t,Accept:'application/vnd.github+json','Content-Type':'application/json'}});
- const j=await res.json().catch(()=>({}));if(!res.ok)throw Error(j.message||res.status);return j}
+ const j=await res.json().catch(()=>({}));if(!res.ok){const e=Error(j.message||res.status);e.status=res.status;throw e}return j}
 function b64(s){const by=new TextEncoder().encode(s);let bin='';for(let i=0;i<by.length;i+=32768)bin+=String.fromCharCode.apply(null,by.subarray(i,i+32768));return btoa(bin)}
-async function push(file,obj){const g=G();const l=await gh(`contents/api?ref=${g.b}`);const ex=l.find(x=>x.name==file);
- await gh(`contents/api/${file}`,{method:'PUT',body:JSON.stringify({message:'admin: update '+file,content:b64(JSON.stringify(obj)),branch:g.b,...(ex?{sha:ex.sha}:{})})})}
-async function pub(w){try{saveSet();msg('جاري النشر...');
- if(w!='h'){S.cfg=JSON.parse($('#cfgText').value);await push('config',S.cfg)}
- if(w!='c')await push('houses',S.houses);
- msg('تم النشر ✓ يظهر على الموقع بعد 1-2 دقيقة')}catch(e){msg('فشل: '+e.message)}}
-function dl(w){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(w=='config'?S.cfg:S.houses)],{type:'application/json'}));a.download=w+'.json';a.click()}
-load();
+async function push(path,content){const g=G();let sha;try{sha=(await gh(`contents/${path}?ref=${g.b}`)).sha}catch(e){if(e.status!=404)throw e}
+ await gh(`contents/${path}`,{method:'PUT',body:JSON.stringify({message:'admin: update '+path,content,branch:g.b,...(sha?{sha}:{})})})}
+async function pub(){try{if(!G().t)return msg('أدخل الـ Token أولاً');saveSet();msg('جاري النشر...');
+ const c=S.cfg,h=S.hd;c.rev=(c.rev||0)+1;c.total=h.total=S.rows.length;h.rev=c.rev;h.coins=c.coins;h.fv=(h.fv||0)+1;h.houses=S.rows;
+ await push('api/config',b64(JSON.stringify(c)));await push('api/houses',b64(JSON.stringify(h)));
+ for(const [n,d] of Object.entries(S.imgs))await push('img/'+n,d);
+ S.imgs={};S.dirty=false;sum();msg('تم النشر ✓ يظهر على الموقع بعد 1-2 دقيقة (الصفحات المفتوحة تتحدث تلقائياً)')}catch(e){msg('فشل: '+e.message)}}
+function dl(w){const h=S.hd;h.houses=S.rows;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(w=='config'?S.cfg:h)],{type:'application/json'}));a.download=w+'.json';a.click()}
+addEventListener('beforeunload',e=>{if(S.dirty){e.preventDefault();e.returnValue=''}});
+tab('u');load();
 </script></body></html>

@@ -3454,7 +3454,7 @@ async function sync(initial, early) {
     const data = await (early || fetch('api/houses?after=' + houses.length + (fv === null ? '' : '&fv=' + fv)).then((r) => r.json()));
     initial = initial || !houses.length; // also when the first try failed
     if (rev !== null && data.rev !== rev) { location.reload(); return; }
-    const fresh = data.houses || [];
+    const fresh = (data.houses || []).filter((r) => Array.isArray(r) && r[0] > houses.length); // a static host sends every house each time: take only the new ones
     const animateFrom = !initial ? 0 : fresh.length > 2000 ? fresh.length : fresh.length - 260; // a big city opens on the map: none is near enough to be seen popping up
     const step = initial ? Math.min(14, 1500 / Math.max(1, Math.min(fresh.length, 260))) : 250;
     for (const [index, code] of data.flags || []) { // flags raised or changed on houses already here
