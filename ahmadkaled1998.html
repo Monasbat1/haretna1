@@ -12,7 +12,7 @@ input,textarea,select{width:100%;padding:8px;border:1px solid var(--b);border-ra
 table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid var(--b);padding:3px;white-space:nowrap;background:#fff}
 td input,td select{min-width:70px;margin:0;padding:4px}td input[type=checkbox]{min-width:0;width:auto}
 textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}small{color:#667}
-.im{display:inline-block;width:130px;margin:4px;text-align:center;font-size:12px;vertical-align:top}.im img{width:100%;height:90px;object-fit:cover;border-radius:8px;background:#ddd}
+.im{display:inline-block;width:170px;margin:4px;text-align:center;font-size:12px;vertical-align:top}.im img{width:100%;height:90px;object-fit:cover;border-radius:8px;background:#ddd}
 #msg{position:fixed;bottom:10px;left:10px;right:10px;background:#16202c;color:#fff;padding:10px;border-radius:10px;display:none;z-index:9}
 </style></head><body>
 <div class="card"><b>🏠 لوحة إدارة حارتنا</b> <small id="sum"></small>
@@ -55,6 +55,8 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <script>
 const $=s=>document.querySelector(s),PER=40,TOWN=['JO','PS','LB','IQ','MA','EG','YE','SA'];
 const S={sel:new Set(),cfg:null,hd:null,rows:[],page:0,f:'',lv:'',co:'',imgs:{},dirty:false};
+const DEF={'royal-king.jpg':'جلالة الملك عبدالله الثاني ابن الحسين','royal-crown-prince.jpg':'سمو الأمير الحسين بن عبدالله الثاني · ولي العهد','saudi-king.jpg':'خادم الحرمين الشريفين الملك سلمان','saudi-crown-prince.jpg':'ولي العهد الأمير محمد بن سلمان','syria-president.jpg':'فخامة الرئيس أحمد الشرع','sarout.jpg':'الشهيد البطل|عبد الباسط الساروت'};
+function setName(n,v){S.cfg.names=S.cfg.names||{};v=v.trim();if(v)S.cfg.names[n]=v;else delete S.cfg.names[n];S.dirty=true}
 const IMGS=['club-faisaly.png','club-wehdat.png','royal-crown-prince.jpg','royal-king.jpg','sarout.jpg','saudi-crown-prince.jpg','saudi-king.jpg','syria-president.jpg'];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',5000)}
@@ -120,7 +122,7 @@ function newRace(){const c=S.cfg,n=Date.now();c.race={...(c.race||{}),week:(c.ra
 function applyCfg(){try{S.cfg=JSON.parse($('#cfgText').value);S.dirty=true;fillP();sum();msg('تم التطبيق ✓')}catch(e){msg('JSON غير صالح: '+e.message)}}
 
 function renderI(){$('#imgs').innerHTML=[...new Set([...IMGS,...Object.keys(S.imgs)])].map(n=>`<div class="im"><img id="p_${esc(n)}" src="${S.imgs[n]?'data:image/*;base64,'+S.imgs[n]:'img/'+esc(n)+'?_='+Date.now()}"><div>${esc(n)}${S.imgs[n]?' ✱':''}</div>
- <input type="file" accept="image/*" onchange="pick('${esc(n)}',this.files[0])"></div>`).join('')}
+ <input type="file" accept="image/*" onchange="pick('${esc(n)}',this.files[0])">${DEF[n]?`<input placeholder="${esc(DEF[n])}" title="الاسم تحت الصورة${n=='sarout.jpg'?' (سطران مفصولان بـ |)':''}" value="${esc((S.cfg&&S.cfg.names&&S.cfg.names[n])||'')}" oninput="setName('${esc(n)}',this.value)">`:''}</div>`).join('')}
 function rd(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(',')[1]);r.onerror=no;r.readAsDataURL(f)})}
 async function pick(n,f){if(!f)return;if(f.size>5e6)return msg('الصورة أكبر من 5MB');S.imgs[n]=await rd(f);S.dirty=true;renderI();msg('جاهزة للنشر: '+n)}
 function newImg(){const n=$('#nn').value.trim().replace(/[^\w.\-]/g,''),f=$('#nf').files[0];if(!n||!f)return msg('اكتب الاسم واختر ملفاً');pick(n,f)}
