@@ -195,8 +195,8 @@
 } }
 </script>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
-<link rel="preload" as="fetch" href="/api/config" crossorigin>
-<link rel="preload" as="fetch" href="/api/houses?after=0" crossorigin>
+<link rel="preload" as="fetch" href="api/config" crossorigin>
+<link rel="preload" as="fetch" href="api/houses?after=0" crossorigin>
 </head>
 <body>
 <canvas id="city" aria-label="مدينة ثلاثية الأبعاد، كل بيت فيها لمتابع"></canvas>
@@ -209,7 +209,7 @@
   <div class="panel count" aria-live="polite">🏠 <b id="count">…</b> بيت</div>
   <button class="panel count coins" id="coinsBtn" type="button" aria-label="رصيد المدينة">🪙 <b id="coins">0</b> <span class="lbl">رصيد المدينة</span></button>
   <button class="reels-btn" id="reelsBtn" type="button" hidden>🎬 ريلز</button>
-  <a class="btn reels-btn" id="drawBtn" href="/draw.html">🎁 القرعة</a>
+  <a class="btn reels-btn" id="drawBtn" href="draw.html">🎁 القرعة</a>
   <button class="panel find-btn" id="findBtn" type="button" aria-label="وين بيتي؟ ابحث باسم حسابك" aria-expanded="false" aria-controls="search">🔍</button>
   <form class="panel search" id="search" autocomplete="off">
     <input id="q" type="text" inputmode="latin" autocapitalize="none" spellcheck="false"
@@ -245,7 +245,7 @@
   </ol>
   <p class="tip">🚩 اكتب اسم بلدك بالتعليق ليرتفع علمك فوق بيتك، ومن الأردن وفلسطين ولبنان والعراق والمغرب ومصر واليمن والسعودية بيتك بينبنى بحارة بلدك</p>
   <button class="btn ghost how-coins" id="howCoins" type="button">🪙 رصيد المدينة</button>
-  <a class="privacy" href="/privacy.html">سياسة الخصوصية</a>
+  <a class="privacy" href="privacy.html">سياسة الخصوصية</a>
   <p class="owner">حارتنا من <a href="https://moutazalbardan.com" rel="noopener"><bdi dir="ltr">Albardan Digital</bdi></a></p>
 </section>
 

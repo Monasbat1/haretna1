@@ -974,7 +974,7 @@ function updatePodium(now = Date.now()) {
   P.at = now;
   if (race && now >= race.end && now - podiumAsked > 120000) {
     podiumAsked = now;
-    fetch('/api/config', { cache: 'no-store' }).then((r) => r.json()).then((c) => { if (c && c.race) { race = c.race; flagSquareDirty = true; } }).catch(() => {});
+    fetch('api/config', { cache: 'no-store' }).then((r) => r.json()).then((c) => { if (c && c.race) { race = c.race; flagSquareDirty = true; } }).catch(() => {});
   }
   const champs = race && race.podium && race.podium.length ? race.podium : null;
   const counts = race ? raceCounts() : {};
@@ -2990,7 +2990,7 @@ async function openHearts(key) {
   heartFor = key;
   showHearts(key, null, false);
   try {
-    const r = await (await fetch(`/api/hearts?k=${key}&id=${heartId()}`, { cache: 'no-store' })).json();
+    const r = await (await fetch(`api/hearts?k=${key}&id=${heartId()}`, { cache: 'no-store' })).json();
     showHearts(key, r.n, r.mine);
   } catch (err) { $('#cardMeta').textContent = '❤️'; }
 }
@@ -2999,7 +2999,7 @@ $('#cardHeart').addEventListener('click', async () => {
   if (!key || b.disabled) return;
   b.disabled = true;
   try {
-    const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k: key, id: heartId() }) });
+    const res = await fetch('api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k: key, id: heartId() }) });
     const r = await res.json();
     if (!res.ok) { b.disabled = false; toast(r.error === 'slow' ? 'انحطّ كتير قلوب من هالشبكة 🙏 جرّب من نت تاني' : 'ما زبطت، جرّب كمان مرة'); return; }
     showHearts(key, r.n, true);
@@ -3451,7 +3451,7 @@ async function sync(initial, early) {
   if (loading) return;
   loading = true;
   try {
-    const data = await (early || fetch('/api/houses?after=' + houses.length + (fv === null ? '' : '&fv=' + fv)).then((r) => r.json()));
+    const data = await (early || fetch('api/houses?after=' + houses.length + (fv === null ? '' : '&fv=' + fv)).then((r) => r.json()));
     initial = initial || !houses.length; // also when the first try failed
     if (rev !== null && data.rev !== rev) { location.reload(); return; }
     const fresh = data.houses || [];
@@ -3688,7 +3688,7 @@ const breathe = () => new Promise((r) => setTimeout(r, 0)); // lets the phone pa
 async function start() {
   // both asked for at once (index.html has started them already), not one after the other
   const getJson = (u) => { const p = fetch(u).then((r) => r.json()); p.catch(() => {}); return p; };
-  const firstConfig = getJson('/api/config'), firstHouses = getJson('/api/houses?after=0');
+  const firstConfig = getJson('api/config'), firstHouses = getJson('api/houses?after=0');
   resize();
   await breathe();
   buildPlaza();

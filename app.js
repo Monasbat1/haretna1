@@ -169,7 +169,7 @@ function start() {
   // ---- the villa: a code that only the account's owner can comment
   async function villaCard(box, u) {
     let state;
-    try { state = await (await fetch('/api/app/state', { cache: 'no-store' })).json(); } catch (x) { return; }
+    try { state = await (await fetch('api/app/state', { cache: 'no-store' })).json(); } catch (x) { return; }
     if (!state.link || !box.isConnected) return;
     box.innerHTML = `
       <div class="box">
@@ -182,7 +182,7 @@ function start() {
     btn.onclick = async () => {
       btn.disabled = true; err.textContent = '';
       try {
-        const res = await fetch('/api/app/code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ u }) });
+        const res = await fetch('api/app/code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ u }) });
         const r = await res.json();
         if (res.ok && r.villa) { reloadHome(); return; } // already one: load the city again
         if (res.ok && r.code) { codeSteps(box, r.code); return; }
@@ -216,7 +216,7 @@ function start() {
   async function rewardCard(box) {
     if (!App.rewarded) return;
     let state;
-    try { state = await (await fetch('/api/app/state', { cache: 'no-store' })).json(); } catch (x) { return; }
+    try { state = await (await fetch('api/app/state', { cache: 'no-store' })).json(); } catch (x) { return; }
     if (!state.rewards || !box.isConnected) return;
     App.prepareRewarded();
     box.innerHTML = `
