@@ -143,7 +143,7 @@ const prize = (w) => w.kind === 'police' ? `👮 رئيس شرطة ${TOWNS[w.tow
   : w.kind === 'tower' ? '🏢 برج للأبد' : w.kind === 'train' ? '🚂 سائق قطار الحجاز'
   : w.kind === 'souq' ? '🛍️ تاجر سوق الحميدية' : '✈️ طيارة باسمه';
 const num = (n) => Number(n).toLocaleString('en-US');
-const igLink = (a, handle) => { a.textContent = '@' + handle; a.href = 'https://www.instagram.com/' + encodeURIComponent(handle) + '/'; a.dataset.ig = handle; };
+const igLink = (a, handle) => { a.textContent = '@' + handle; a.href = handle === 'hartna.city' ? 'https://www.instagram.com/hartna.city?dmpr=NWNueWcya2c0OHZx' : 'https://www.instagram.com/' + encodeURIComponent(handle) + '/'; a.dataset.ig = handle; };
 // On a phone, an account opens in the Instagram app itself (where people can follow
 // at once), not in the browser. Inside Instagram's own browser it stays in the app;
 // on Android the app is asked for by name, with the web page if it is not there; on
