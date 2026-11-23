@@ -77,6 +77,10 @@ async function load(){try{
  S.prev=fromDb?{config:cs,houses:hs}:null;
  S.cfg=c;S.hd=h;let a=h.houses||[],cut=0;while(a.length&&!Array.isArray(a[0])){a=a.slice(1);cut++}
  a=a.filter((r,i)=>Array.isArray(r)||(cut++,false));S.rows=a;if(cut){S.dirty=true;msg('تم تنظيف '+cut+' صف تالف تلقائياً، انشر ليُحفظ')}
+ S.pk=[];if(fromDb){try{const p=await FBA.get('pending');if(p&&typeof p==='object'){const have=new Set(S.rows.map(r=>String(r[1]).toLowerCase()));let add=0;
+  for(const [k,v] of Object.entries(p).sort((x,y)=>(x[1].t-y[1].t)||(x[0]<y[0]?-1:1))){S.pk.push(k);const u=v&&typeof v.u==='string'?v.u:'',cc=v&&typeof v.c==='string'?v.c.toUpperCase():'';
+   if(!u||!cc||have.has(u.toLowerCase()))continue;have.add(u.toLowerCase());S.rows.push([S.rows.length+1,u,1,cc,TOWN.includes(cc)?cc:'',0,0]);add++}
+  if(add){S.dirty=true;msg('أُضيف '+add+' بيت جديد من تعليقات إنستغرام — اضغط 🚀 نشر')}}}catch(e){}}
  renderU();fillP();sum();if(!fromDb){S.dirty=true;msg('القاعدة فارغة: حمّلنا البيانات من الملفات، اضغط 🚀 نشر لرفعها لأول مرة')}else if(!cut)msg('تم التحميل ✓')}catch(e){msg('خطأ: '+e.message)}}
 function sum(){const a=S.rows,live=a.filter(r=>r[1]).length;$('#sum').textContent=`— ${live} مستخدم فعّال / ${a.length} خانة | 🪙 ${S.cfg.coins} | rev ${S.cfg.rev}`}
 function view(){const f=S.f.trim().toLowerCase();return S.rows.filter(r=>{
@@ -140,8 +144,9 @@ async function pub(){try{
  const cs=JSON.stringify(c),hs=JSON.stringify(h);
  const body={'city/config':cs,'city/houses':hs,'city/meta':{rev:c.rev,fv:h.fv,total:h.total,coins:h.coins}};
  if(S.prev){body['backup/config']=S.prev.config;body['backup/houses']=S.prev.houses}
+ (S.pk||[]).forEach(k=>{body['pending/'+k]=null});
  await FBA.patch('',body);
- S.prev={config:cs,houses:hs};S.dirty=false;sum();msg('تم النشر ✓ يظهر للزوار خلال ثوانٍ (الصفحات المفتوحة تتحدث تلقائياً)')}catch(e){msg('فشل: '+(e.message==='DENIED'?'لا صلاحية للنشر':e.message))}}
+ S.prev={config:cs,houses:hs};S.pk=[];S.dirty=false;sum();msg('تم النشر ✓ يظهر للزوار خلال ثوانٍ (الصفحات المفتوحة تتحدث تلقائياً)')}catch(e){msg('فشل: '+(e.message==='DENIED'?'لا صلاحية للنشر':e.message))}}
 async function restoreBackup(){try{
  const [cs,hs]=await Promise.all([FBA.get('backup/config'),FBA.get('backup/houses')]);
  if(typeof cs!=='string'||typeof hs!=='string')return msg('لا توجد نسخة سابقة بعد');

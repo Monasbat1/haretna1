@@ -1,13 +1,21 @@
 {
   "rules": {
-    ".read": "auth != null && auth.uid === 'ضع_هنا_UID_حساب_الأدمن'",
-    ".write": "auth != null && auth.uid === 'ضع_هنا_UID_حساب_الأدمن'",
+    ".read": "auth != null && auth.uid === 'ADMIN_UID_HERE'",
+    ".write": "auth != null && auth.uid === 'ADMIN_UID_HERE'",
     "city": {
       ".read": true,
       "config": { ".validate": "newData.isString() && newData.val().length < 500000" },
       "houses": { ".validate": "newData.isString() && newData.val().length < 12000000" },
       "meta": { ".validate": "newData.child('rev').isNumber() && newData.child('total').isNumber()" },
       "$other": { ".validate": false }
+    },
+    "pending": {
+      ".read": true,
+      "$k": {
+        ".write": "auth != null && auth.uid === 'BOT_UID_HERE' && !data.exists()",
+        ".validate": "newData.hasChildren(['u','c','t']) && newData.child('u').isString() && newData.child('u').val().length <= 40 && newData.child('c').isString() && newData.child('c').val().length == 2 && newData.child('t').isNumber()",
+        "$f": { ".validate": "$f === 'u' || $f === 'c' || $f === 't'" }
+      }
     },
     "backup": {
       "config": { ".validate": "newData.isString()" },
