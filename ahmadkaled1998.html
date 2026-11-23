@@ -1,5 +1,6 @@
 <!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://ahmad-662ee-default-rtdb.firebaseio.com; base-uri 'none'; form-action 'none'">
 <title>لوحة إدارة حارتنا</title>
 <style>
 :root{--bg:#eef6ff;--p:#1f6feb;--t:#16202c;--b:#d0dae6}
@@ -15,7 +16,12 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 .im{display:inline-block;width:170px;margin:4px;text-align:center;font-size:12px;vertical-align:top}.im img{width:100%;height:90px;object-fit:cover;border-radius:8px;background:#ddd}
 #msg{position:fixed;bottom:10px;left:10px;right:10px;background:#16202c;color:#fff;padding:10px;border-radius:10px;display:none;z-index:9}
 </style></head><body>
-<div class="card"><b>🏠 لوحة إدارة حارتنا</b> <small id="sum"></small>
+<div id="login" class="card"><b>🔐 دخول الأدمن</b>
+<input id="em" type="email" autocomplete="username" placeholder="البريد الإلكتروني" dir="ltr">
+<input id="pw" type="password" autocomplete="current-password" placeholder="كلمة المرور" dir="ltr">
+<button onclick="doLogin()">دخول</button><div id="lerr" style="color:#d73a49;margin-top:6px"></div></div>
+<div id="app" style="display:none">
+<div class="card"><b>🏠 لوحة إدارة حارتنا</b> <small id="sum"></small> <small id="who"></small> <button class="g" onclick="logout()">خروج</button>
 <div class="tabs" id="tabs"></div></div>
 
 <div id="t_u" class="card">
@@ -42,16 +48,15 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <button class="g" onclick="newRace()">بدء سباق جديد (7 أيام)</button>
 <hr><b>متقدم: كل الإعدادات (JSON) — المعالم، العناوين، الدول، الريلز...</b><textarea id="cfgText"></textarea><button onclick="applyCfg()">تطبيق JSON</button></div>
 
-<div id="t_i" class="card" style="display:none"><b>الصور</b> <small>اختر ملفاً لاستبدال صورة، ثم انشر</small><div id="imgs"></div>
-<hr><input id="nn" placeholder="اسم ملف جديد مثل new.jpg"><input id="nf" type="file" accept="image/*"><button onclick="newImg()">＋ إضافة صورة</button></div>
+<div id="t_i" class="card" style="display:none"><b>الصور</b> <small>هنا تعديل الأسماء المكتوبة تحت الصور فقط. لاستبدال ملف الصورة نفسه ارفعه على GitHub داخل مجلد img/</small><div id="imgs"></div></div>
 
-<div id="t_s" class="card" style="display:none"><b>النشر إلى GitHub</b>
-<input id="o" placeholder="اسم الحساب" value="Monasbat1"><input id="r" placeholder="المستودع" value="haretna1"><input id="b" placeholder="الفرع" value="main">
-<input id="tk" type="password" placeholder="Token (ghp_...) صلاحية Contents: write">
-<button class="g" onclick="saveSet();msg('تم الحفظ')">حفظ الإعدادات</button><button class="g" onclick="forget()">نسيان Token</button><hr>
+<div id="t_s" class="card" style="display:none"><b>النشر</b> <small>ينشر التغييرات على قاعدة البيانات، وتظهر للزوار خلال ثوانٍ</small>
 <button onclick="pub()">🚀 نشر كل التغييرات</button><hr>
+<button class="g" onclick="restoreBackup()">↩️ استرجاع النسخة السابقة (قبل آخر نشر)</button><hr>
 <button class="g" onclick="dl('config')">تنزيل config</button><button class="g" onclick="dl('houses')">تنزيل houses</button></div>
+</div>
 <div id="msg"></div>
+<script src="admin-fb.js"></script>
 <script>
 const $=s=>document.querySelector(s),PER=40,TOWN=['JO','PS','LB','IQ','MA','EG','YE','SA'];
 const S={sel:new Set(),cfg:null,hd:null,rows:[],page:0,f:'',lv:'',co:'',imgs:{},dirty:false};
@@ -64,10 +69,15 @@ const TABS={u:'👥 المستخدمون',p:'🪙 النقاط والإعداد�
 $('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-t="${k}" onclick="tab('${k}')">${v}</button>`).join('')+'<button class="g" onclick="load()">↻</button>';
 function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='i')renderI()}
 async function load(){try{
- const [c,h]=await Promise.all(['api/config','api/houses'].map(u=>fetch(u+'?_='+Date.now()).then(r=>{if(!r.ok)throw Error(u+' '+r.status);return r.json()})));
+ let cs=null,hs=null;
+ try{[cs,hs]=await Promise.all([FBA.get('city/config'),FBA.get('city/houses')])}catch(e){if(e.message==='DENIED')throw Error('ليس لديك صلاحية')}
+ const fromDb=typeof cs==='string'&&typeof hs==='string';let c,h;
+ if(fromDb){c=JSON.parse(cs);h=JSON.parse(hs)}
+ else{[c,h]=await Promise.all(['api/config','api/houses'].map(u=>fetch(u+'?_='+Date.now()).then(r=>{if(!r.ok)throw Error(u+' '+r.status);return r.json()})))}
+ S.prev=fromDb?{config:cs,houses:hs}:null;
  S.cfg=c;S.hd=h;let a=h.houses||[],cut=0;while(a.length&&!Array.isArray(a[0])){a=a.slice(1);cut++}
  a=a.filter((r,i)=>Array.isArray(r)||(cut++,false));S.rows=a;if(cut){S.dirty=true;msg('تم تنظيف '+cut+' صف تالف تلقائياً، انشر ليُحفظ')}
- renderU();fillP();sum();if(!cut)msg('تم التحميل ✓')}catch(e){msg('خطأ: '+e.message)}}
+ renderU();fillP();sum();if(!fromDb){S.dirty=true;msg('القاعدة فارغة: حمّلنا البيانات من الملفات، اضغط 🚀 نشر لرفعها لأول مرة')}else if(!cut)msg('تم التحميل ✓')}catch(e){msg('خطأ: '+e.message)}}
 function sum(){const a=S.rows,live=a.filter(r=>r[1]).length;$('#sum').textContent=`— ${live} مستخدم فعّال / ${a.length} خانة | 🪙 ${S.cfg.coins} | rev ${S.cfg.rev}`}
 function view(){const f=S.f.trim().toLowerCase();return S.rows.filter(r=>{
  if(f&&!(String(r[1]).toLowerCase().includes(f)||String(r[0])===f))return false;
@@ -121,32 +131,28 @@ function applyP(){const c=S.cfg;c.coins=+$('#coins').value||0;c.perHouse=+$('#pe
 function newRace(){const c=S.cfg,n=Date.now();c.race={...(c.race||{}),week:(c.race?.week||0)+1,start:n,end:n+6048e5,from:S.rows.length,last:null,podium:null};S.dirty=true;fillP();msg('سباق جديد ✓')}
 function applyCfg(){try{S.cfg=JSON.parse($('#cfgText').value);S.dirty=true;fillP();sum();msg('تم التطبيق ✓')}catch(e){msg('JSON غير صالح: '+e.message)}}
 
-function renderI(){$('#imgs').innerHTML=[...new Set([...IMGS,...Object.keys(S.imgs)])].map(n=>`<div class="im"><img id="p_${esc(n)}" src="${S.imgs[n]?'data:image/*;base64,'+S.imgs[n]:'img/'+esc(n)+'?_='+Date.now()}"><div>${esc(n)}${S.imgs[n]?' ✱':''}</div>
- <input type="file" accept="image/*" onchange="pick('${esc(n)}',this.files[0])">${DEF[n]?`<input placeholder="${esc(DEF[n])}" title="الاسم تحت الصورة${n=='sarout.jpg'?' (سطران مفصولان بـ |)':''}" value="${esc((S.cfg&&S.cfg.names&&S.cfg.names[n])||'')}" oninput="setName('${esc(n)}',this.value)">`:''}</div>`).join('')}
-function rd(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(',')[1]);r.onerror=no;r.readAsDataURL(f)})}
-async function pick(n,f){if(!f)return;if(f.size>5e6)return msg('الصورة أكبر من 5MB');S.imgs[n]=await rd(f);S.dirty=true;renderI();msg('جاهزة للنشر: '+n)}
-function newImg(){const n=$('#nn').value.trim().replace(/[^\w.\-]/g,''),f=$('#nf').files[0];if(!n||!f)return msg('اكتب الاسم واختر ملفاً');pick(n,f)}
+function renderI(){$('#imgs').innerHTML=IMGS.map(n=>`<div class="im"><img src="img/${esc(n)}?_=${Date.now()}"><div>${esc(n)}</div>${DEF[n]?`<input placeholder="${esc(DEF[n])}" title="الاسم تحت الصورة${n=='sarout.jpg'?' (سطران مفصولان بـ |)':''}" value="${esc((S.cfg&&S.cfg.names&&S.cfg.names[n])||'')}" oninput="setName('${esc(n)}',this.value)">`:''}</div>`).join('')}
 
-function saveSet(){try{['o','r','b','tk'].forEach(k=>localStorage.setItem('adm_'+k,$('#'+k).value))}catch(e){}}
-function forget(){try{localStorage.removeItem('adm_tk')}catch(e){}$('#tk').value='';msg('تم')}
-try{['o','r','b','tk'].forEach(k=>{const v=localStorage.getItem('adm_'+k);if(v)$('#'+k).value=v})}catch(e){}
-const G=()=>({o:$('#o').value.trim(),r:$('#r').value.trim(),b:$('#b').value.trim()||'main',t:$('#tk').value.trim()});
-async function gh(p,opt={}){const g=G();const res=await fetch(`https://api.github.com/repos/${g.o}/${g.r}/${p}`,{...opt,headers:{Authorization:'Bearer '+g.t,Accept:'application/vnd.github+json','Content-Type':'application/json'}});
- const j=await res.json().catch(()=>({}));if(!res.ok){const e=Error(j.message||res.status);e.status=res.status;throw e}return j}
-function b64(s){const by=new TextEncoder().encode(s);let bin='';for(let i=0;i<by.length;i+=32768)bin+=String.fromCharCode.apply(null,by.subarray(i,i+32768));return btoa(bin)}
-async function push(path,content){const g=G();let sha;try{sha=(await gh(`contents/${path}?ref=${g.b}`)).sha}catch(e){if(e.status!=404)throw e}
- await gh(`contents/${path}`,{method:'PUT',body:JSON.stringify({message:'admin: update '+path,content,branch:g.b,...(sha?{sha}:{})})})}
-// commit واحد لكل الملفات (config + houses + الصور) فلا يصل الموقع نصف محدّث
-async function pub(){try{if(!G().t)return msg('أدخل الـ Token أولاً');saveSet();msg('جاري النشر...');const g=G();
+async function pub(){try{
+ if(!S.cfg||!S.hd)return msg('لم تُحمَّل البيانات بعد');
+ msg('جاري النشر...');
  const c=S.cfg,h=S.hd;c.rev=(c.rev||0)+1;c.total=h.total=S.rows.length;h.rev=c.rev;h.coins=c.coins;h.fv=(h.fv||0)+1;h.houses=S.rows;
- const files=[['api/config',b64(JSON.stringify(c))],['api/houses',b64(JSON.stringify(h))],...Object.entries(S.imgs).map(([n,d])=>['img/'+n,d])];
- const ref=await gh(`git/ref/heads/${encodeURIComponent(g.b)}`),base=ref.object.sha,bc=await gh(`git/commits/${base}`);
- const tree=[];for(const [path,content] of files){const bl=await gh('git/blobs',{method:'POST',body:JSON.stringify({content,encoding:'base64'})});tree.push({path,mode:'100644',type:'blob',sha:bl.sha})}
- const nt=await gh('git/trees',{method:'POST',body:JSON.stringify({base_tree:bc.tree.sha,tree})});
- const nc=await gh('git/commits',{method:'POST',body:JSON.stringify({message:'admin: update '+files.map(f=>f[0]).join(', '),tree:nt.sha,parents:[base]})});
- await gh(`git/refs/heads/${encodeURIComponent(g.b)}`,{method:'PATCH',body:JSON.stringify({sha:nc.sha})});
- S.imgs={};S.dirty=false;sum();msg('تم النشر ✓ يظهر على الموقع بعد 1-2 دقيقة (الصفحات المفتوحة تتحدث تلقائياً)')}catch(e){msg('فشل: '+e.message)}}
+ const cs=JSON.stringify(c),hs=JSON.stringify(h);
+ const body={'city/config':cs,'city/houses':hs,'city/meta':{rev:c.rev,fv:h.fv,total:h.total,coins:h.coins}};
+ if(S.prev){body['backup/config']=S.prev.config;body['backup/houses']=S.prev.houses}
+ await FBA.patch('',body);
+ S.prev={config:cs,houses:hs};S.dirty=false;sum();msg('تم النشر ✓ يظهر للزوار خلال ثوانٍ (الصفحات المفتوحة تتحدث تلقائياً)')}catch(e){msg('فشل: '+(e.message==='DENIED'?'لا صلاحية للنشر':e.message))}}
+async function restoreBackup(){try{
+ const [cs,hs]=await Promise.all([FBA.get('backup/config'),FBA.get('backup/houses')]);
+ if(typeof cs!=='string'||typeof hs!=='string')return msg('لا توجد نسخة سابقة بعد');
+ if(!confirm('تحميل النسخة السابقة في اللوحة؟ (لا تُنشر حتى تضغط نشر)'))return;
+ S.cfg=JSON.parse(cs);S.hd=JSON.parse(hs);S.rows=(S.hd.houses||[]).filter(r=>Array.isArray(r));S.dirty=true;renderU();fillP();sum();msg('حُمّلت النسخة السابقة — اضغط 🚀 نشر لاعتمادها')}catch(e){msg('فشل: '+e.message)}}
 function dl(w){const h=S.hd;h.houses=S.rows;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(w=='config'?S.cfg:h)],{type:'application/json'}));a.download=w+'.json';a.click()}
 addEventListener('beforeunload',e=>{if(S.dirty){e.preventDefault();e.returnValue=''}});
-tab('u');load();
+function enter(){$('#login').style.display='none';$('#app').style.display='block';$('#who').textContent=FBA.email();tab('u');load()}
+async function doLogin(){const e=$('#lerr');e.textContent='';try{await FBA.signIn($('#em').value,$('#pw').value);
+ if(!(await FBA.checkAdmin())){FBA.signOut();throw Error('هذا الحساب ليس أدمن')}$('#pw').value='';enter()}catch(x){e.textContent=x.message}}
+function logout(){FBA.signOut();location.reload()}
+$('#pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+(async()=>{if(FBA.restore()){try{if(await FBA.checkAdmin())return enter()}catch(e){}FBA.signOut()}})();
 </script></body></html>
