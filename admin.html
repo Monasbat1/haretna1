@@ -1,0 +1,88 @@
+
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>لوحة إدارة حارتنا</title>
+<style>
+:root{--bg:#eef6ff;--p:#1f6feb;--t:#16202c;--b:#d0dae6}
+*{box-sizing:border-box}body{margin:0;font-family:Tajawal,system-ui,sans-serif;background:var(--bg);color:var(--t);padding:10px}
+.card{background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px #0001}
+button{background:var(--p);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:inherit;margin:2px}
+button.g{background:#e6edf5;color:var(--t)}button.r{background:#d73a49;padding:4px 9px}
+input,textarea,select{width:100%;padding:8px;border:1px solid var(--b);border-radius:8px;font:inherit;margin:3px 0}
+.tabs{display:flex;gap:4px;overflow:auto;margin-bottom:8px}
+.w{overflow:auto;max-height:58vh}table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{border:1px solid var(--b);padding:3px;white-space:nowrap;background:#fff}td input{min-width:90px;margin:0;padding:4px}
+textarea{font-family:monospace;direction:ltr;min-height:300px}
+#msg{position:fixed;bottom:10px;left:10px;right:10px;background:#16202c;color:#fff;padding:10px;border-radius:10px;display:none;z-index:9}
+</style></head><body>
+<div class="card"><b>🏠 لوحة إدارة حارتنا</b>
+<div class="tabs"><button onclick="tab('cfg')">الإعدادات</button><button onclick="tab('houses')">البيوت</button><button onclick="tab('pub')">النشر</button><button class="g" onclick="load()">↻ إعادة تحميل</button></div></div>
+
+<div id="t_cfg" class="card"><b>api/config</b> (JSON)
+<textarea id="cfgText"></textarea>
+<button onclick="applyCfg()">تطبيق</button></div>
+
+<div id="t_houses" class="card" style="display:none">
+<input id="q" placeholder="🔍 بحث في البيوت" oninput="S.filter=this.value;S.page=0;renderH()">
+<div id="hInfo"></div>
+<button class="g" onclick="S.page=Math.max(0,S.page-1);renderH()">◀ السابق</button>
+<button class="g" onclick="S.page++;renderH()">التالي ▶</button>
+<button onclick="addRow()">＋ بيت جديد</button>
+<div class="w"><table id="hTable"></table></div>
+<hr>إحصاء حسب عمود: <select id="sc" onchange="stat()"></select><div id="sOut"></div></div>
+
+<div id="t_pub" class="card" style="display:none"><b>النشر إلى GitHub</b>
+<input id="o" placeholder="اسم الحساب" value="Monasbat1">
+<input id="r" placeholder="اسم المستودع" value="haretna1">
+<input id="b" placeholder="الفرع" value="main">
+<input id="tk" type="password" placeholder="Token (ghp_...)">
+<button class="g" onclick="saveSet();msg('تم الحفظ على هذا الجهاز')">حفظ الإعدادات</button>
+<button class="g" onclick="forget()">نسيان الـ Token</button><hr>
+<button onclick="pub('c')">نشر الإعدادات</button>
+<button onclick="pub('h')">نشر البيوت</button>
+<button onclick="pub('a')">نشر الكل</button><hr>
+<button class="g" onclick="dl('config')">تنزيل config</button>
+<button class="g" onclick="dl('houses')">تنزيل houses</button></div>
+<div id="msg"></div>
+<script>
+const $=s=>document.querySelector(s);
+const S={cfg:null,houses:null,hKey:null,rows:[],page:0,filter:''},PER=40;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',4000)}
+function tab(n){['cfg','houses','pub'].forEach(x=>$('#t_'+x).style.display=x==n?'block':'none')}
+async function load(){try{
+ const [c,h]=await Promise.all(['api/config','api/houses'].map(u=>fetch(u+'?_='+Date.now()).then(r=>{if(!r.ok)throw Error(u+' '+r.status);return r.text()})));
+ S.cfg=JSON.parse(c);S.houses=JSON.parse(h);S.hKey=null;let a=S.houses;
+ if(!Array.isArray(a)){S.hKey=Object.keys(a).find(k=>Array.isArray(a[k]));a=S.hKey?a[S.hKey]:[];if(!S.hKey)msg('تركيبة البيوت غير متوقعة، أرسلها للمطوّر')}
+ S.rows=a;$('#cfgText').value=JSON.stringify(S.cfg,null,2);renderH();msg('تم التحميل ✓ البيوت: '+S.rows.length);
+}catch(e){msg('خطأ: '+e.message)}}
+function cols(){const s=new Set();S.rows.slice(0,100).forEach(r=>r&&typeof r=='object'&&Object.keys(r).forEach(k=>{if(r[k]===null||typeof r[k]!='object')s.add(k)}));return[...s]}
+function view(){const f=S.filter.toLowerCase();return S.rows.map((r,i)=>[r,i]).filter(([r])=>!f||JSON.stringify(r).toLowerCase().includes(f))}
+function renderH(){const C=cols(),V=view(),P=Math.max(1,Math.ceil(V.length/PER));
+ if(S.page>=P)S.page=P-1;const sl=V.slice(S.page*PER,S.page*PER+PER);
+ $('#hInfo').textContent=`النتائج ${V.length} من ${S.rows.length} — صفحة ${S.page+1}/${P}`;
+ $('#hTable').innerHTML='<tr><th></th>'+C.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>'+sl.map(([r,i])=>`<tr><td><button class="r" data-del="${i}">✕</button></td>`+C.map(c=>`<td><input data-i="${i}" data-c="${esc(c)}" value="${esc(r[c]??'')}"></td>`).join('')+'</tr>').join('');
+ $('#sc').innerHTML=C.map(c=>`<option>${esc(c)}</option>`).join('');stat()}
+function stat(){const c=$('#sc').value;if(!c)return;const m={};S.rows.forEach(r=>{const v=r&&r[c];m[v]=(m[v]||0)+1});
+ $('#sOut').textContent=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([k,v])=>k+': '+v).join(' | ')}
+$('#hTable').addEventListener('change',e=>{const t=e.target;if(t.dataset.i===undefined)return;const r=S.rows[+t.dataset.i],k=t.dataset.c,o=r[k];let v=t.value;
+ if(typeof o=='number'&&v!==''&&!isNaN(v))v=Number(v);else if(typeof o=='boolean')v=v=='true';r[k]=v});
+$('#hTable').addEventListener('click',e=>{const t=e.target.closest('[data-del]');if(t&&confirm('حذف هذا البيت؟')){S.rows.splice(+t.dataset.del,1);renderH()}});
+function addRow(){const n={};const f=S.rows[0]||{};Object.keys(f).forEach(k=>n[k]=typeof f[k]=='number'?0:typeof f[k]=='boolean'?false:'');S.rows.unshift(n);S.filter='';$('#q').value='';S.page=0;renderH()}
+function applyCfg(){try{S.cfg=JSON.parse($('#cfgText').value);msg('تم التطبيق ✓ اذهب إلى النشر')}catch(e){msg('JSON غير صالح: '+e.message)}}
+function saveSet(){try{['o','r','b','tk'].forEach(k=>localStorage.setItem('adm_'+k,$('#'+k).value))}catch(e){}}
+function forget(){try{localStorage.removeItem('adm_tk')}catch(e){}$('#tk').value='';msg('تم')}
+try{['o','r','b','tk'].forEach(k=>{const v=localStorage.getItem('adm_'+k);if(v)$('#'+k).value=v})}catch(e){}
+const G=()=>({o:$('#o').value.trim(),r:$('#r').value.trim(),b:$('#b').value.trim()||'main',t:$('#tk').value.trim()});
+async function gh(p,opt={}){const g=G();const res=await fetch(`https://api.github.com/repos/${g.o}/${g.r}/${p}`,{...opt,headers:{Authorization:'Bearer '+g.t,Accept:'application/vnd.github+json','Content-Type':'application/json'}});
+ const j=await res.json().catch(()=>({}));if(!res.ok)throw Error(j.message||res.status);return j}
+function b64(s){const by=new TextEncoder().encode(s);let bin='';for(let i=0;i<by.length;i+=32768)bin+=String.fromCharCode.apply(null,by.subarray(i,i+32768));return btoa(bin)}
+async function push(file,obj){const g=G();const l=await gh(`contents/api?ref=${g.b}`);const ex=l.find(x=>x.name==file);
+ await gh(`contents/api/${file}`,{method:'PUT',body:JSON.stringify({message:'admin: update '+file,content:b64(JSON.stringify(obj)),branch:g.b,...(ex?{sha:ex.sha}:{})})})}
+async function pub(w){try{saveSet();msg('جاري النشر...');
+ if(w!='h'){S.cfg=JSON.parse($('#cfgText').value);await push('config',S.cfg)}
+ if(w!='c')await push('houses',S.houses);
+ msg('تم النشر ✓ يظهر على الموقع بعد 1-2 دقيقة')}catch(e){msg('فشل: '+e.message)}}
+function dl(w){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(w=='config'?S.cfg:S.houses)],{type:'application/json'}));a.download=w+'.json';a.click()}
+load();
+</script></body></html>
