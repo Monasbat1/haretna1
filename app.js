@@ -203,7 +203,7 @@ function start() {
           <li>اكتب الرمز بتعليق، من حسابك نفسه</li>
           <li>ارجع لهون وحدّث. عادةً بدها لحظات، وأحياناً لحد 10 دقايق</li>
         </ol>
-        <a class="big" style="text-align:center; text-decoration:none" href="https://www.instagram.com/hartna.city/">افتح إنستغرام</a>
+        <a class="big" style="text-align:center; text-decoration:none" href="https://www.instagram.com/hartna.city?dmpr=NWNueWcya2c0OHZx">افتح إنستغرام</a>
         <button class="big ghost" type="button" id="checkVilla">كتبته، حدّث</button>
       </div>`;
     const copy = box.querySelector('#copyCode');
