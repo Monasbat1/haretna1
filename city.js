@@ -3,6 +3,7 @@ import * as THREE from 'three';
 // so a picture replaced in the admin panel shows up instead of the browser's old copy.
 const IMG = (name) => 'img/' + name + '?v=' + Math.floor(Date.now() / 60000);
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { getConfig, getHousesData } from './db.js'; // البيانات من Firebase (مع رجوع للملفات الثابتة)
 import { bake, car as carModel, box as kitBox, tree as kitTree } from './models/kit.js';
 import { HOUSE_LEVELS } from './models/houses.js';
 import { MAX_LEVEL, onFloors, tower } from './models/levels.js';
@@ -977,7 +978,7 @@ function updatePodium(now = Date.now()) {
   P.at = now;
   if (race && now >= race.end && now - podiumAsked > 120000) {
     podiumAsked = now;
-    fetch('api/config', { cache: 'no-store' }).then((r) => r.json()).then((c) => { if (c && c.race) { race = c.race; flagSquareDirty = true; } }).catch(() => {});
+    getConfig().then((c) => { if (c && c.race) { race = c.race; flagSquareDirty = true; } }).catch(() => {});
   }
   const champs = race && race.podium && race.podium.length ? race.podium : null;
   const counts = race ? raceCounts() : {};
@@ -3456,7 +3457,7 @@ async function sync(initial, early) {
   if (loading) return;
   loading = true;
   try {
-    const data = await (early || fetch('api/houses?after=' + houses.length + (fv === null ? '' : '&fv=' + fv), { cache: 'no-store' }).then((r) => r.json()));
+    const data = await (early || getHousesData());
     initial = initial || !houses.length; // also when the first try failed
     if (rev !== null && data.rev !== rev) { location.reload(); return; }
     const fresh = (data.houses || []).filter((r) => Array.isArray(r) && r[0] > houses.length); // a static host sends every house each time: take only the new ones
@@ -3692,8 +3693,8 @@ if (new URLSearchParams(location.search).has('debug')) {
 const breathe = () => new Promise((r) => setTimeout(r, 0)); // lets the phone paint and take taps between two big jobs
 async function start() {
   // both asked for at once (index.html has started them already), not one after the other
-  const getJson = (u) => { const p = fetch(u, { cache: 'no-store' }).then((r) => r.json()); p.catch(() => {}); return p; };
-  const firstConfig = getJson('api/config'), firstHouses = getJson('api/houses?after=0');
+  const prime = (p) => { p.catch(() => {}); return p; };
+  const firstConfig = prime(getConfig()), firstHouses = prime(getHousesData());
   resize();
   await breathe();
   buildPlaza();

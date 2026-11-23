@@ -1,0 +1,19 @@
+{
+  "rules": {
+    ".read": "auth != null && auth.uid === 'ضع_هنا_UID_حساب_الأدمن'",
+    ".write": "auth != null && auth.uid === 'ضع_هنا_UID_حساب_الأدمن'",
+    "city": {
+      ".read": true,
+      "config": { ".validate": "newData.isString() && newData.val().length < 500000" },
+      "houses": { ".validate": "newData.isString() && newData.val().length < 12000000" },
+      "meta": { ".validate": "newData.child('rev').isNumber() && newData.child('total').isNumber()" },
+      "$other": { ".validate": false }
+    },
+    "backup": {
+      "config": { ".validate": "newData.isString()" },
+      "houses": { ".validate": "newData.isString()" },
+      "$other": { ".validate": false }
+    },
+    "$other": { ".validate": false }
+  }
+}
