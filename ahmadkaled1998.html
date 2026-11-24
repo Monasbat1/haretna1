@@ -40,6 +40,12 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <input id="bc" placeholder="رمز دولة"><button onclick="bulk('co')">تغيير الدولة</button><button class="r" onclick="bulk('del')">حذف الكل</button></div></details>
 <div class="w"><table id="hTable"></table></div></div>
 
+<div id="t_c" class="card" style="display:none"><b>إضافة بيوت من تعليقات إنستغرام</b>
+<small>الصق التعليقات (أو اكتب سطراً لكل شخص: اسم الحساب ثم الدولة، مثل: <span dir="ltr">sara_jo</span> الأردن). أتعرّف على اسم الحساب والدولة، وأعرض لك القائمة قبل الإضافة.</small>
+<textarea id="cmT" rows="9" style="width:100%;margin:8px 0" placeholder="sara_jo الأردن&#10;omar.x سوريا&#10;lina_lb&#10;لبنان"></textarea>
+<button onclick="cmParse()">🔍 تحليل</button><button onclick="cmAdd()">➕ إضافة الجديد للمدينة</button>
+<div id="cmOut" class="w" style="margin-top:8px"></div></div>
+
 <div id="t_p" class="card" style="display:none"><b>النقاط والرصيد والمتجر</b>
 <div class="row"><label>رصيد المدينة 🪙<input id="coins" type="number"></label><label>نقاط كل بيت جديد<input id="perHouse" type="number"></label><label>اسم الحساب<input id="acc"></label></div>
 <b>المتجر</b><div class="w" style="max-height:30vh"><table id="shopT"></table></div><button class="g" onclick="shopAdd()">＋ معلم</button>
@@ -65,7 +71,7 @@ function setName(n,v){S.cfg.names=S.cfg.names||{};v=v.trim();if(v)S.cfg.names[n]
 const IMGS=['club-faisaly.png','club-wehdat.png','royal-crown-prince.jpg','royal-king.jpg','sarout.jpg','saudi-crown-prince.jpg','saudi-king.jpg','syria-president.jpg'];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',5000)}
-const TABS={u:'👥 المستخدمون',p:'🪙 النقاط والإعدادات',i:'🖼️ الصور',s:'🚀 النشر'};
+const TABS={u:'👥 المستخدمون',c:'💬 من التعليقات',p:'🪙 النقاط والإعدادات',i:'🖼️ الصور',s:'🚀 النشر'};
 $('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-t="${k}" onclick="tab('${k}')">${v}</button>`).join('')+'<button class="g" onclick="load()">↻</button>';
 function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='i')renderI()}
 async function load(){try{
@@ -114,6 +120,29 @@ function addMany(){const t=prompt('اكتب كل مستخدم في سطر (اس�
  t.split(/\n/).forEach(l=>{const [u0,c0]=l.split(/[,،\s]+/);const u=(u0||'').trim().replace(/^@+/,'');if(!u)return;if(have.has(u.toLowerCase())){skip++;return}
   have.add(u.toLowerCase());const cc=(c0||'SY').trim().toUpperCase();S.rows.push([S.rows.length+1,u,1,cc,TOWN.includes(cc)?cc:'',0,0]);n++});
  S.dirty=true;renderU();sum();msg('أُضيف '+n+(skip?' (تجاهل '+skip+' مكرر)':'')+' — اضغط نشر')}
+const AL={SY:['سوريه','الشام'],US:['امريكا','الولايات المتحده','امريكه'],GB:['بريطانيا','انجلترا','المملكه المتحده'],TR:['تركيه'],AE:['الامارات'],SA:['السعوديه','المملكه العربيه السعوديه'],KR:['كوريا الجنوبيه'],PS:['غزه']};
+const nrm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+const sal=s=>nrm(s).split(' ').filter(Boolean).map(t=>t.length>3&&t.startsWith('ال')?t.slice(2):t).join(' ');
+function cmCountry(text){const C=(S.cfg&&S.cfg.countries)||{},hay=' '+sal(text)+' ';let b=null;
+ const t=(c,p0)=>{const p=sal(p0);if(!p)return;const at=hay.indexOf(' '+p+' ');if(at<0)return;if(!b||at<b.at||(at===b.at&&p.length>b.len))b={c,at,len:p.length}};
+ for(const [c,n] of Object.entries(C))t(c,n);for(const [c,l] of Object.entries(AL))l.forEach(a=>t(c,a));return b?b.c:null}
+const NOISE=/^(reply|like|likes?|view \d+ more repl\w+|view repl\w+|hide repl\w+|see translation|translate|edited|verified|pinned|ردّ|رد|إعجاب|اعجاب|أعجبني|عرض الردود.*|إخفاء الردود.*|عرض الترجمة|\d+\s*(w|d|h|m|s|أسبوع|يوم|ساعة|دقيقة)|\d+ likes?|\d+ إعجاب.*)$/i;
+function cmParse(){if(!S.cfg)return msg('لم تُحمَّل البيانات بعد');
+ const L=$('#cmT').value.split('\n').map(x=>x.trim()).filter(x=>x&&!NOISE.test(x));
+ const have=new Set(S.rows.map(r=>String(r[1]).toLowerCase())),seen=new Set(),out=[],bad=[];
+ const push=(u,c)=>{u=u.toLowerCase();if(seen.has(u))return;seen.add(u);out.push({u,c,dup:have.has(u)})};
+ for(let i=0;i<L.length;i++){const l=L[i];let m=/^@?([a-z0-9._]{1,30})\s*[:：\-–—]?\s+(.+)$/i.exec(l);
+  if(m){const c=cmCountry(m[2]);if(c){push(m[1],c);continue}}
+  m=/^@?([a-z0-9._]{1,30})$/i.exec(l);if(m&&i+1<L.length){const c=cmCountry(L[i+1]);if(c){push(m[1],c);i++;continue}}
+  bad.push(l)}
+ S.cm=out;S.cmb=bad;cmShow()}
+function cmShow(){const o=S.cm||[],bad=S.cmb||[],nm=(S.cfg&&S.cfg.countries)||{};
+ $('#cmOut').innerHTML=(o.length?'<table><tr><th></th><th>الحساب</th><th>الدولة</th><th>الحالة</th></tr>'+o.map((x,i)=>`<tr><td><button class="g" onclick="cmDel(${i})">✕</button></td><td dir="ltr">@${esc(x.u)}</td><td>${esc(nm[x.c]||x.c)} (${esc(x.c)})</td><td>${x.dup?'موجود مسبقاً (يُتجاهل)':'جديد ✓'}</td></tr>`).join('')+'</table>':'<small>لم أجد أي تعليق مفهوم</small>')+(bad.length?`<details><summary>أسطر لم أفهمها (${bad.length})</summary>${bad.map(b=>`<div>${esc(b)}</div>`).join('')}</details>`:'')}
+function cmDel(i){S.cm.splice(i,1);cmShow()}
+function cmAdd(){const a=(S.cm||[]).filter(x=>!x.dup);if(!a.length)return msg('لا يوجد جديد للإضافة');
+ const have=new Set(S.rows.map(r=>String(r[1]).toLowerCase()));let n=0;
+ a.forEach(x=>{if(have.has(x.u))return;have.add(x.u);S.rows.push([S.rows.length+1,x.u,1,x.c,TOWN.includes(x.c)?x.c:'',0,0]);n++});
+ S.cm=[];S.cmb=[];$('#cmT').value='';cmShow();S.dirty=true;renderU();sum();msg('أُضيف '+n+' بيت — اضغط 🚀 نشر')}
 function addUser(){const u=(prompt('اسم الحساب (إنستغرام):')||'').trim().replace(/^@+/,'');if(!u)return;
  if(S.rows.some(r=>r[1].toLowerCase()==u.toLowerCase()))return msg('الحساب موجود مسبقاً');
  const cc=(prompt('رمز الدولة (SY, JO, PS, LB...):','SY')||'SY').trim().toUpperCase();
