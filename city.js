@@ -31,6 +31,7 @@ import { jeita } from './models/jeita.js';
 import { fence, crossing, FLAGS as CROSSING_FLAGS } from './models/border.js';
 import { hejazStation, viaduct, platform as railPlatform, bufferStop, train as trainModel, RAIL } from './models/railway.js';
 import { TOWN_AT, landPolygon, inside as inPolygon, compactOrder, spiralIndex, SWORD_TILES, SWORD_SCALE } from './models/maps.js';
+import * as social from './social.js'; // الدردشة + الشخصية + زر إخفاء الأزرار
 import { airport as airportModel, airliner, LIVERIES, SIZE as AIR_SIZE, RUNWAY, TAXI, GATES, STAND_Z, GROUND_Y, ROAD as AIR_ROAD, SIGN as AIR_SIGN, FLAG as AIR_FLAG, RADAR, radarMast, radarDish, airportLights, lightSpots, BEACON } from './models/airport.js';
 
 const $ = (s) => document.querySelector(s);
@@ -1080,6 +1081,7 @@ function setAccount(handle) {
 // Low-poly monuments, added from the control panel. To add a new kind:
 // write a builder here (returns its height) and name it in server.js.
 const landmarkGroups = [];
+let LM_OFF = false; // من لوحة الأدمن (cfg.lmOff): كل المعالم مخفية، والبيوت تبقى بأماكنها
 const spinners = [];
 const UP = new THREE.Vector3(0, 1, 0);
 const cyl16 = new THREE.CylinderGeometry(1, 1, 1, 16);
@@ -1336,6 +1338,7 @@ const BUILDERS = {
 };
 
 function buildLandmark(lm) {
+  if (LM_OFF) { if (!lm.tiles) { const tw = townFor(lm.t); ensureBlock(tw, lm.block); paveBlock(tw, lm.block); } return; }
   if (lm.type === 'norias' && lm.tiles) { buildNorias(lm); return; } // its own blocks, its own ground
   if (lm.type === 'stadium' && lm.tiles) { buildStadium(lm); return; }
   if (lm.type === 'jeita' && lm.tiles) { buildJeita(lm); return; }
@@ -1455,6 +1458,16 @@ function buildTown(town) {
   building.castShadow = building.receiveShadow = true;
   const cloth = bigFlagCloth(town.code);
   cloth.position.set(L.flag.x, L.flag.y, L.flag.z);
+  if (LM_OFF) { // المعالم مخفية: اسم الحارة فقط
+    const lab = textSprite(null, 640, 112, 16);
+    pill(lab.userData.ctx, 640, 112, 'حارة ' + town.name, '#ffffff', '#1d2433', 58, 'rtl');
+    lab.userData.tex.needsUpdate = true;
+    lab.position.set(0, 10, 0);
+    g.add(lab);
+    g.userData.entry = { lm: { type: 'town', name: 'حارة ' + town.name }, town, height: 6, x: cx, z: cz };
+    scene.add(g); landmarkGroups.push(g); town.group = g;
+    return;
+  }
   const label = textSprite(null, 640, 112, 20);
   pill(label.userData.ctx, 640, 112, `${L.label} · ${town.name}`, '#ffffff', '#1d2433', 58, 'rtl');
   label.userData.tex.needsUpdate = true;
@@ -1900,9 +1913,67 @@ function buildPlane(name) {
   bannerPlane = { group: g, set };
 }
 
+// ✈️ الأسطول: طائرة ركاب مدنية لكل بلد تدور حول حارتها، وخلفها شريط يرفرف.
+// من لوحة الأدمن (cfg.planes): إضافة وحذف وإخفاء، واسم صاحب الطائرة بعد أن يحصل عليها.
+const DEFAULT_PLANES = ['', 'LB', 'JO', 'IQ', 'MA', 'EG'].map((t, i) => ({ id: i + 1, town: t, owner: '', text: '', active: true }));
+const FLEET_LIVERY = { '': 'syrianair', JO: 'rj', LB: 'mea', IQ: 'iraqi', EG: 'egyptair', SA: 'saudia', PS: 'chamwings', MA: 'emirates', YE: 'qatar' };
+const WAIT_TEXT = 'انتظر… من يحصل عليّ ليكون باسمك';
+function buildFleet(list) {
+  (list || []).forEach((spec, idx) => { if (spec && spec.active !== false) buildFleetPlane(spec, idx); });
+}
+function buildFleetPlane(spec, idx) {
+  const town = townFor(spec.town || ''), cx = (town.ox + 0.5) * BW, cz = (town.oz + 0.5) * BD;
+  const g = new THREE.Group(), plane = makePlane(FLEET_LIVERY[spec.town || ''] || 'syrianair');
+  g.add(plane);
+  const W = 70, H = 9, GAP = 16, TAIL = 24; // the banner on its rope, behind the tail
+  const owner = cleanName(spec.owner);
+  const text = String(spec.text || '').trim() || (owner ? `✈️ هذه الطائرة باسم ${handle(owner)}` : '✈️ ' + WAIT_TEXT);
+  const c = document.createElement('canvas');
+  c.width = 1536; c.height = Math.round(1536 * H / W);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = owner ? '#fff6d6' : '#fffaf0'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#e1306c'; ctx.fillRect(0, 0, c.width, 22); ctx.fillRect(0, c.height - 22, c.width, 22);
+  ctx.direction = 'rtl'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1d2433';
+  let f = 190;
+  do { ctx.font = `800 ${f}px Tajawal, system-ui, sans-serif`; f -= 4; } while (ctx.measureText(text).width > c.width - 120 && f > 30);
+  ctx.fillText(text, c.width / 2, c.height / 2 + 8);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const back = tex.clone(); back.wrapS = THREE.RepeatWrapping; back.repeat.x = -1; back.offset.x = 1; back.needsUpdate = true; // the same words, the right way round, on the other side
+  const geo = new THREE.PlaneGeometry(W, H, 36, 4);
+  const front = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide }));
+  const rear = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: back, side: THREE.BackSide }));
+  front.position.x = rear.position.x = -(TAIL + GAP + W / 2);
+  const rope = solid(g, box, '#5d5d65', -TAIL - GAP / 2, 0, 0, GAP, 0.15, 0.15);
+  rope.castShadow = false;
+  g.add(front, rear);
+  g.traverse((m) => { if (m.isMesh) m.raycast = () => {}; });
+  scene.add(g);
+  const pos = geo.attributes.position, base = Float32Array.from(pos.array);
+  const flutter = (t) => { // the banner waves more the further it is from the rope
+    for (let i = 0; i < pos.count; i++) {
+      const u = (base[i * 3] + W / 2) / W, a = 1 - u; // u = 1 at the rope
+      pos.array[i * 3 + 2] = Math.sin(u * 10 - t * 5.5) * a * 2.2;
+      pos.array[i * 3 + 1] = base[i * 3 + 1] + Math.sin(u * 7 - t * 4) * a * 0.8;
+    }
+    pos.needsUpdate = true;
+  };
+  const R = 250 + idx * 22, Hh = 105 + (idx % 3) * 16, dir = idx % 2 ? -1 : 1, w = dir * 36 / R, phase = idx * 1.1;
+  const set = (sec) => {
+    const a = phase + sec * w;
+    g.position.set(cx + Math.cos(a) * R, Hh + Math.sin(a * 2) * 3, cz + Math.sin(a) * R);
+    g.rotation.y = Math.atan2(-Math.cos(a) * dir, -Math.sin(a) * dir); // nose (+x) along the circle's tangent
+    plane.rotation.x = 0.2 * dir; // banking into the turn
+    flutter(sec);
+    plane.userData.lights(sec);
+  };
+  set(0);
+  if (!reducedMotion) spinners.push((now) => set(now / 1000));
+}
+
 // «السيف الدمشقي» on its roundabout (see SWORD): the glass shines at night and
 // blue beams sweep out over the road from the projectors round it.
 function buildSword() {
+  if (LM_OFF) return;
   const g = new THREE.Group();
   g.position.set(SWORD.x, 0.02, SWORD.z); // on the middle of its blocks in Damascus
   g.scale.setScalar(SWORD_SCALE);
@@ -1940,6 +2011,7 @@ function buildSword() {
 // «وادي رم» (see RUM): the desert, the mountains and the bubble camp; the
 // candles, the fire and the bubbles light the sand at night.
 function buildRum() {
+  if (LM_OFF) return;
   const g = new THREE.Group();
   g.position.set(RUM.x, 0.02, RUM.z);
   const base = new THREE.Mesh(bake(wadiRum), houseMat);
@@ -2090,6 +2162,7 @@ function placePlane(p, at) {
   p.rotation.set(0, at.yaw, at.pitch);
 }
 function buildAirports() {
+  if (LM_OFF) return;
   for (const A of AIRPORTS) {
     const g = new THREE.Group();
     g.position.set(A.x, 0.02, A.z);
@@ -2280,6 +2353,7 @@ function buildSarout(g) {
 }
 function buildBosra() {
   for (let b = 1; b < 120; b++) { const [bx, bz] = tileOf(SYRIA, b); if (inBosra(bx, bz)) paveBlock(SYRIA, b); } // asphalt under it, no markings or lamps
+  if (LM_OFF) return;
   const g = new THREE.Group();
   g.position.set(BOSRA.x, 0.34, BOSRA.z); // over the blocks' lawns
   const base = new THREE.Mesh(bake(bosra), houseMat); // baking it also tells where the lights and the flag go
@@ -2485,6 +2559,7 @@ function buildJeita(lm) {
 function buildAbdali() {
   const JO = townOf.get('JO');
   for (let b = 4; b < 1000; b++) { const [bx, bz] = tileOf(JO, b); if (inAbdali(bx, bz)) paveBlock(JO, b); } // asphalt under it, no markings or lamps
+  if (LM_OFF) return;
   const g = new THREE.Group();
   g.position.set(ABDALI.x, 0.34, ABDALI.z); // over the blocks' lawns
   const base = new THREE.Mesh(bake(abdali), houseMat);
@@ -3374,6 +3449,7 @@ function chooseTown(t) {
   for (const o of document.querySelectorAll('#towns [data-town]')) o.classList.toggle('on', townFor(o.dataset.town) === t);
   if (t.group) selectLandmark(t.group.userData.entry); // its card (how many houses, how to get one)
   else select(null);
+  if (walker.on) { const e = t.group ? t.group.userData.entry : { x: 0, z: 0 }; walkTo(e.x + 10, e.z + 36); return; } // my character goes there
   const v = townView(t);
   flyView(v.p, v.t, 2200);
 }
@@ -3681,15 +3757,18 @@ function tick(now) {
 
   if (tour) tourStep(now); // the boat tour drives the camera; the hands and keys wait
   else {
-    if (flight) {
-      const t = Math.min(1, (now - flight.t0) / flight.dur);
-      const k = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      camera.position.lerpVectors(flight.fromP, flight.toP, k);
-      controls.target.lerpVectors(flight.fromT, flight.toT, k);
-      if (t >= 1) flight = null;
+    if (walker.on) walkerStep(dt); // my character: the camera follows it, free of the city's limits
+    else {
+      if (flight) {
+        const t = Math.min(1, (now - flight.t0) / flight.dur);
+        const k = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        camera.position.lerpVectors(flight.fromP, flight.toP, k);
+        controls.target.lerpVectors(flight.fromT, flight.toT, k);
+        if (t >= 1) flight = null;
+      }
+      steer(dt);
+      keepInCity();
     }
-    steer(dt);
-    keepInCity();
     controls.update();
   }
   draw(now, false);
@@ -3751,6 +3830,149 @@ if (new URLSearchParams(location.search).has('debug')) {
   };
 }
 
+// ------------------------------------------------------------------ شخصيتي
+// صاحب البيت يمشي بشخصيته في كل المدينة (بلا حواجز)، والزوار يرون الشخصيات المتصلة.
+// المواضع تُرسل كل ~0.7 ثانية أثناء الحركة (social.js)، وتُقرأ كل 3 ثوانٍ وتُنعَّم بالحركة.
+const walker = { on: false, name: '', x: 0, z: 0, yaw: 0, jx: 0, jy: 0, speedI: 0, put: 0, was: false, ph: 0, avatar: null };
+const SPEEDS = [['عادية', 16], ['سريعة', 45], ['صاروخ 🚀', 130]];
+const others = new Map(); // الاسم -> { g, legs, arms, tx, tz, tr, t, seen, ph }
+function makeAvatar(name) {
+  const g = new THREE.Group(), body = new THREE.Group(), hh = hash(name.toLowerCase());
+  const shirt = `hsl(${hh % 360} 62% 52%)`, pants = '#2f3b52', skin = ['#f2cfae', '#dba97b', '#b97f55'][hh % 3], hair = ['#2b1d14', '#5a3a22', '#1b1b1f', '#8a6a3b'][(hh >> 3) % 4];
+  const limb = (x, y, color, w, h, d, cy) => { const l = new THREE.Group(); l.position.set(x, y, 0); solid(l, box, color, 0, cy, 0, w, h, d); body.add(l); return l; };
+  const legs = [limb(-0.22, 0.9, pants, 0.32, 0.9, 0.32, -0.45), limb(0.22, 0.9, pants, 0.32, 0.9, 0.32, -0.45)];
+  const arms = [limb(-0.56, 1.85, shirt, 0.24, 0.8, 0.26, -0.4), limb(0.56, 1.85, shirt, 0.24, 0.8, 0.26, -0.4)];
+  solid(body, box, shirt, 0, 1.4, 0, 0.8, 0.95, 0.44);
+  solid(body, new THREE.SphereGeometry(0.34, 14, 10), skin, 0, 2.2, 0);
+  solid(body, new THREE.SphereGeometry(0.36, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), hair, 0, 2.26, -0.02);
+  solid(body, box, '#1d2433', -0.12, 2.22, 0.31, 0.07, 0.07, 0.04);
+  solid(body, box, '#1d2433', 0.12, 2.22, 0.31, 0.07, 0.07, 0.04);
+  body.scale.setScalar(1.5);
+  g.add(body);
+  const lab = textSprite(null, 384, 96, 7);
+  pill(lab.userData.ctx, 384, 96, '@' + name, '#ffffff', '#1d2433', 46);
+  lab.userData.tex.needsUpdate = true;
+  lab.position.y = 4.7;
+  g.add(lab);
+  g.traverse((m) => { if (m.isMesh) m.raycast = () => {}; });
+  g.position.y = BASE_Y + 0.02;
+  return { g, legs, arms };
+}
+function poseAvatar(a, moving, ph) {
+  const k = moving ? Math.sin(ph) * 0.75 : 0;
+  a.legs[0].rotation.x = k; a.legs[1].rotation.x = -k;
+  a.arms[0].rotation.x = -k * 0.8; a.arms[1].rotation.x = k * 0.8;
+}
+const turnTo = (from, to, k) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * k;
+async function pollPlayers() {
+  if (document.hidden || !ready) return;
+  const list = await social.getPlayers(), now = Date.now(), mine = social.me();
+  for (const p of list) {
+    if (!p.name || typeof p.x !== 'number' || typeof p.z !== 'number') continue;
+    if (walker.on && p.name === mine) continue; // mine is drawn from my own steps
+    let o = others.get(p.name);
+    if (!o) {
+      const a = makeAvatar(p.name);
+      a.g.position.set(p.x, a.g.position.y, p.z);
+      scene.add(a.g);
+      o = { ...a, tx: p.x, tz: p.z, tr: p.r || 0, t: -1, seen: now, ph: 0 };
+      others.set(p.name, o);
+    }
+    if (p.t !== o.t) { o.t = p.t; o.seen = now; }
+    o.tx = p.x; o.tz = p.z; o.tr = p.r || 0;
+  }
+  for (const [n, o] of others) {
+    if (now - o.seen > 45000 || (walker.on && n === mine)) { scene.remove(o.g); others.delete(n); }
+  }
+}
+setInterval(() => pollPlayers().catch(() => {}), 3000);
+spinners.push(() => {
+  for (const o of others.values()) {
+    const dx = o.tx - o.g.position.x, dz = o.tz - o.g.position.z, d = Math.hypot(dx, dz);
+    if (d > 500) { o.g.position.x = o.tx; o.g.position.z = o.tz; }
+    else { o.g.position.x += dx * 0.12; o.g.position.z += dz * 0.12; }
+    o.g.rotation.y = turnTo(o.g.rotation.y, o.tr, 0.15);
+    const moving = d > 0.4;
+    if (moving) o.ph += 0.35;
+    poseAvatar(o, moving, o.ph);
+  }
+});
+function placeWalker() {
+  const a = walker.avatar; if (!a) return;
+  a.g.position.set(walker.x, BASE_Y + 0.02, walker.z);
+  a.g.rotation.y = walker.yaw;
+}
+function walkerStep(dt) {
+  const kx = on('right') - on('left'), ky = on('fwd') - on('back');
+  let jx = walker.jx + kx, jy = walker.jy + ky;
+  const m = Math.hypot(jx, jy);
+  if (m > 1) { jx /= m; jy /= m; }
+  _fwd.set(controls.target.x - camera.position.x, 0, controls.target.z - camera.position.z);
+  if (_fwd.lengthSq() < 1e-6) _fwd.set(0, 0, -1);
+  _fwd.normalize();
+  _side.set(-_fwd.z, 0, _fwd.x);
+  const moving = m > 0.05;
+  if (moving) {
+    const mx = _fwd.x * jy + _side.x * jx, mz = _fwd.z * jy + _side.z * jx, v = SPEEDS[walker.speedI][1] * dt;
+    walker.x = THREE.MathUtils.clamp(walker.x + mx * v, -20000, 20000);
+    walker.z = THREE.MathUtils.clamp(walker.z + mz * v, -20000, 20000);
+    walker.yaw = turnTo(walker.yaw, Math.atan2(mx, mz), Math.min(1, dt * 12));
+    walker.ph += dt * (9 + 4 * walker.speedI);
+  }
+  poseAvatar(walker.avatar, moving, walker.ph);
+  placeWalker();
+  const dx = walker.x - controls.target.x, dz = walker.z - controls.target.z; // the camera follows, keeping its own angle and distance
+  controls.target.set(walker.x, 1.8, walker.z);
+  camera.position.x += dx; camera.position.z += dz;
+  const t = performance.now();
+  if (moving ? t - walker.put > 700 : (walker.was || t - walker.put > 8000)) { walker.put = t; social.putPlayer(walker.x, walker.z, walker.yaw); }
+  walker.was = moving;
+}
+function walkTo(x, z) { walker.x = x; walker.z = z; walker.put = 0; walker.was = true; } // the camera follows on the next frame
+async function toggleWalk() {
+  if (walker.on) return stopWalk();
+  const name = await social.needName();
+  if (!name) return;
+  const rec = byName.get(name);
+  if (!rec) { toast('ما لقينا بيتك بالمدينة، تأكد من الاسم'); return; }
+  takeOver();
+  walker.on = true; walker.name = name; walker.jx = walker.jy = 0;
+  walker.x = rec.x + Math.sin(rec.rot) * 6; walker.z = rec.z + Math.cos(rec.rot) * 6; walker.yaw = rec.rot;
+  if (!walker.avatar) { walker.avatar = makeAvatar(name); scene.add(walker.avatar.g); }
+  walker.avatar.g.visible = true;
+  placeWalker();
+  const own = others.get(name);
+  if (own) { scene.remove(own.g); others.delete(name); }
+  document.body.classList.add('hz-walk');
+  $('#hzWalk').classList.add('on');
+  controls.enablePan = false;
+  controls.zoomToCursor = false; // the zoom stays on my character
+  controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+  controls.touches.ONE = THREE.TOUCH.ROTATE;
+  controls.target.set(walker.x, 1.8, walker.z);
+  camera.position.set(walker.x - Math.sin(walker.yaw) * 17, 10, walker.z - Math.cos(walker.yaw) * 17);
+  walker.put = 0; walker.was = true;
+  toast('🚶 شخصيتك في المدينة: حرّك العصا · ⚡ للسرعة · اضغط علم دولة لتنتقل إليها', 6000);
+}
+function stopWalk() {
+  walker.on = false;
+  if (walker.avatar) walker.avatar.g.visible = false;
+  document.body.classList.remove('hz-walk');
+  $('#hzWalk').classList.remove('on');
+  controls.enablePan = true;
+  controls.zoomToCursor = true;
+  controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+  controls.touches.ONE = THREE.TOUCH.PAN;
+  social.dropPlayer();
+}
+addEventListener('pagehide', () => { if (walker.on) social.dropPlayer(); });
+social.setup({
+  houseExists: (n) => byName.has(n),
+  onWalk: () => toggleWalk().catch((err) => { console.error(err); toast('تعذّر تشغيل الشخصية'); }),
+  onSpeed: () => { walker.speedI = (walker.speedI + 1) % SPEEDS.length; toast('⚡ السرعة: ' + SPEEDS[walker.speedI][0], 1800); },
+  onMove: (x, y) => { walker.jx = x; walker.jy = y; },
+});
+
 const breathe = () => new Promise((r) => setTimeout(r, 0)); // lets the phone paint and take taps between two big jobs
 async function start() {
   // both asked for at once (index.html has started them already), not one after the other
@@ -3772,6 +3994,7 @@ async function start() {
   try {
     const cfg = await firstConfig;
     rev = cfg.rev;
+    LM_OFF = !!cfg.lmOff;
     $('#account').textContent = '@' + cfg.account;
     $('#account').href = 'https://www.instagram.com/hartna.city?dmpr=NWNueWcya2c0OHZx';
     setAccount(cfg.account);
@@ -3806,8 +4029,9 @@ async function start() {
     buildAbdali(); // Abdali Boulevard and the Rotana tower, in Jordan's village
     await breathe();
     const station = (cfg.landmarks || []).find((lm) => lm.type === 'station');
-    if (station) buildRailway(station);
+    if (station && !LM_OFF) buildRailway(station);
     if (titles.plane) buildPlane(titles.plane); // the weekly draw's banner plane, over Damascus
+    buildFleet(cfg.planes ?? DEFAULT_PLANES); // a civil plane for each country (admin: cfg.planes)
   } catch (err) {
     console.error(err);
     toast('تعذّر تحميل المدينة، جرّب تحديث الصفحة');

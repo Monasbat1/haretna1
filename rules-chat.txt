@@ -1,0 +1,59 @@
+"claims": {
+    ".read": true,
+    "$u": {
+      ".write": "auth != null && !data.exists() && newData.val() === auth.uid",
+      ".validate": "newData.isString() && $u.matches(/^[a-z0-9_,]{1,40}$/)"
+    }
+  },
+  "chat": {
+    "public": {
+      ".read": true,
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.child('u').isString() && newData.child('u').val().matches(/^[a-z0-9_,]{1,40}$/) && root.child('claims').child(newData.child('u').val()).val() === auth.uid",
+        ".validate": "newData.hasChildren(['u','x','t']) && newData.child('x').isString() && newData.child('x').val().length >= 1 && newData.child('x').val().length <= 300 && newData.child('t').isNumber()",
+        "$f": {
+          ".validate": "$f === 'u' || $f === 'x' || $f === 't'"
+        }
+      }
+    },
+    "$other": {
+      ".validate": false
+    }
+  },
+  "dm": {
+    "$to": {
+      ".read": "auth != null && root.child('claims').child($to).val() === auth.uid",
+      "$from": {
+        ".read": "auth != null && (root.child('claims').child($to).val() === auth.uid || root.child('claims').child($from).val() === auth.uid)",
+        "$id": {
+          ".write": "auth != null && !data.exists() && $to.matches(/^[a-z0-9_,]{1,40}$/) && root.child('claims').child($from).val() === auth.uid",
+          ".validate": "newData.hasChildren(['x','t']) && newData.child('x').isString() && newData.child('x').val().length >= 1 && newData.child('x').val().length <= 300 && newData.child('t').isNumber()",
+          "$f": {
+            ".validate": "$f === 'x' || $f === 't'"
+          }
+        }
+      }
+    }
+  },
+  "players": {
+    ".read": true,
+    "$u": {
+      ".write": "auth != null && root.child('claims').child($u).val() === auth.uid",
+      ".validate": "newData.hasChildren(['x','z','t'])",
+      "x": {
+        ".validate": "newData.isNumber() && newData.val() > -30000 && newData.val() < 30000"
+      },
+      "z": {
+        ".validate": "newData.isNumber() && newData.val() > -30000 && newData.val() < 30000"
+      },
+      "r": {
+        ".validate": "newData.isNumber()"
+      },
+      "t": {
+        ".validate": "newData.isNumber()"
+      },
+      "$other": {
+        ".validate": false
+      }
+    }
+  },

@@ -64,6 +64,16 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <button class="g" onclick="newRace()">بدء سباق جديد (7 أيام)</button>
 <hr><b>متقدم: كل الإعدادات (JSON) — المعالم، العناوين، الدول، الريلز...</b><textarea id="cfgText"></textarea><button onclick="applyCfg()">تطبيق JSON</button></div>
 
+<div id="t_m" class="card" style="display:none"><b>🏛️ المعالم</b> <small id="lmState"></small>
+<div><small>«إزالة» تخفي كل المعالم عن الزوار (الجامع الأموي والبيوت والطرق تبقى، وأماكن البيوت لا تتغير). «إرجاع» يعيدها كما كانت بدون أي فقدان. بعد الضغط اضغط 🚀 نشر.</small></div>
+<button id="lmBtn" onclick="lmToggle()">🧹 إزالة كل المعالم</button><hr>
+<b>✈️ الطائرات المدنية</b> <small>طائرة لكل بلد تدور حول حارتها وخلفها شريط يرفرف. اكتب اسم صاحبها بعد أن يحصل عليها فيظهر اسمه على الشريط.</small>
+<div class="w" style="max-height:40vh"><table id="plT"></table></div>
+<button class="g" onclick="plAdd()">＋ طائرة</button><button class="g" onclick="plClear()">حذف كل الطائرات</button><button class="g" onclick="plReset()">↺ الطائرات الست الافتراضية</button><hr>
+<b>💬 إشراف الدردشة</b> <small>ينفَّذ فوراً (لا يحتاج نشر).</small>
+<div class="row"><button class="r" onclick="modDo('pub')">مسح الدردشة العامة</button><button class="r" onclick="modDo('dm')">مسح كل الرسائل الخاصة</button><button class="g" onclick="modDo('pl')">إخفاء كل الشخصيات الآن</button></div>
+<div class="row"><input id="mdN" dir="ltr" placeholder="اسم حساب لفك حجزه من جهاز (username)"><button onclick="modDo('claim')">فك حجز الاسم</button></div></div>
+
 <div id="t_i" class="card" style="display:none"><b>الصور</b> <small>هنا تعديل الأسماء المكتوبة تحت الصور فقط. لاستبدال ملف الصورة نفسه ارفعه على GitHub داخل مجلد img/</small><div id="imgs"></div></div>
 
 <div id="t_s" class="card" style="display:none"><b>النشر</b> <small>ينشر التغييرات على قاعدة البيانات، وتظهر للزوار خلال ثوانٍ</small>
@@ -81,9 +91,9 @@ function setName(n,v){S.cfg.names=S.cfg.names||{};v=v.trim();if(v)S.cfg.names[n]
 const IMGS=['club-faisaly.png','club-wehdat.png','royal-crown-prince.jpg','royal-king.jpg','sarout.jpg','saudi-crown-prince.jpg','saudi-king.jpg','syria-president.jpg'];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',5000)}
-const TABS={u:'👥 المستخدمون',c:'💬 من التعليقات',r:'💎 الرعاة والإعلانات',p:'🪙 النقاط والإعدادات',i:'🖼️ الصور',s:'🚀 النشر'};
+const TABS={u:'👥 المستخدمون',c:'💬 من التعليقات',r:'💎 الرعاة والإعلانات',m:'🏛️ المعالم والطائرات',p:'🪙 النقاط والإعدادات',i:'🖼️ الصور',s:'🚀 النشر'};
 $('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-t="${k}" onclick="tab('${k}')">${v}</button>`).join('')+'<button class="g" onclick="load()">↻</button>';
-function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='r')spFill();if(n=='i')renderI()}
+function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='r')spFill();if(n=='m')fillM();if(n=='i')renderI()}
 async function load(){try{
  let cs=null,hs=null;
  try{[cs,hs]=await Promise.all([FBA.get('city/config'),FBA.get('city/houses')])}catch(e){if(e.message==='DENIED')throw Error('ليس لديك صلاحية')}
@@ -219,6 +229,25 @@ async function restoreBackup(){try{
  if(!confirm('تحميل النسخة السابقة في اللوحة؟ (لا تُنشر حتى تضغط نشر)'))return;
  S.cfg=JSON.parse(cs);S.hd=JSON.parse(hs);S.rows=(S.hd.houses||[]).filter(r=>Array.isArray(r));S.dirty=true;renderU();fillP();sum();msg('حُمّلت النسخة السابقة — اضغط 🚀 نشر لاعتمادها')}catch(e){msg('فشل: '+e.message)}}
 function dl(w){const h=S.hd;h.houses=S.rows;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(w=='config'?S.cfg:h)],{type:'application/json'}));a.download=w+'.json';a.click()}
+
+const FT={'':'سوريا',LB:'لبنان',JO:'الأردن',IQ:'العراق',MA:'المغرب',EG:'مصر',PS:'فلسطين',YE:'اليمن',SA:'السعودية'};
+const DEFP=()=>['','LB','JO','IQ','MA','EG'].map((t,i)=>({id:i+1,town:t,owner:'',text:'',active:true}));
+function pl(){if(!Array.isArray(S.cfg.planes))S.cfg.planes=DEFP();return S.cfg.planes}
+function fillM(){const off=!!S.cfg.lmOff;$('#lmState').textContent=off?'— المعالم مخفية حالياً':'— المعالم ظاهرة';$('#lmBtn').textContent=off?'🏛️ إرجاع كل المعالم':'🧹 إزالة كل المعالم';$('#lmBtn').className=off?'':'r';
+ const P=Array.isArray(S.cfg.planes)?S.cfg.planes:DEFP();
+ $('#plT').innerHTML='<tr><th></th><th>البلد</th><th>صاحب الطائرة (@)</th><th>نص الشريط (اختياري)</th><th>فعّالة</th></tr>'+P.map((p,i)=>`<tr><td><button class="r" onclick="plDel(${i})">✕</button></td><td><select onchange="plEdit(${i},'town',this.value)">${Object.entries(FT).map(([k,v])=>`<option value="${k}"${(p.town||'')===k?' selected':''}>${v}</option>`).join('')}</select></td><td><input dir="ltr" value="${esc(p.owner)}" placeholder="فارغ = تنتظر صاحبها" onchange="plEdit(${i},'owner',this.value)"></td><td><input value="${esc(p.text)}" placeholder="الافتراضي: انتظر… من يحصل عليّ ليكون باسمك" onchange="plEdit(${i},'text',this.value)"></td><td><input type="checkbox"${p.active!==false?' checked':''} onchange="plEdit(${i},'active',this.checked)"></td></tr>`).join('')}
+function lmToggle(){S.cfg.lmOff=!S.cfg.lmOff;S.dirty=true;fillM();msg(S.cfg.lmOff?'ستُخفى المعالم بعد 🚀 نشر':'ستعود المعالم بعد 🚀 نشر')}
+function plEdit(i,k,v){const P=pl();if(k==='owner')v=String(v).trim().replace(/^@+/,'').toLowerCase();P[i][k]=v;S.dirty=true;fillM()}
+function plAdd(){const P=pl();P.push({id:Math.max(0,...P.map(p=>p.id||0))+1,town:'',owner:'',text:'',active:true});S.dirty=true;fillM()}
+function plDel(i){pl().splice(i,1);S.dirty=true;fillM()}
+function plClear(){if(!confirm('حذف كل الطائرات؟'))return;S.cfg.planes=[];S.dirty=true;fillM()}
+function plReset(){S.cfg.planes=DEFP();S.dirty=true;fillM();msg('عادت الطائرات الست — اضغط 🚀 نشر')}
+async function modDo(w){try{if(!confirm('متأكد؟'))return;
+ if(w==='pub')await FBA.patch('chat',{public:null});
+ else if(w==='dm')await FBA.patch('',{dm:null});
+ else if(w==='pl')await FBA.patch('',{players:null});
+ else{const n=$('#mdN').value.trim().replace(/^@+/,'').toLowerCase().replace(/\./g,',');if(!n)return msg('اكتب اسم الحساب');await FBA.patch('claims',{[n]:null})}
+ msg('تم ✓')}catch(e){msg('فشل: '+(e.message==='DENIED'?'القواعد لا تسمح (انشر قواعد الدردشة أولاً)':e.message))}}
 addEventListener('beforeunload',e=>{if(S.dirty){e.preventDefault();e.returnValue=''}});
 function enter(){$('#login').style.display='none';$('#app').style.display='block';$('#who').textContent=FBA.email();tab('u');load()}
 async function doLogin(){const e=$('#lerr');e.textContent='';try{await FBA.signIn($('#em').value,$('#pw').value);
