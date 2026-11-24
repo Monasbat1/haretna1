@@ -816,11 +816,10 @@ function updateCars(now) {
     const { p0, c, p1, len } = car.piece, t = car.s / len, u = 1 - t;
     const x = u * u * p0[0] + 2 * u * t * c[0] + t * t * p1[0], z = u * u * p0[1] + 2 * u * t * c[1] + t * t * p1[1];
     const hx = u * (c[0] - p0[0]) + t * (p1[0] - c[0]), hz = u * (c[1] - p0[1]) + t * (p1[1] - c[1]);
-    const dd = car.dead && now < car.dead; // سيارة قصفتها الطائرة: تختفي ٤٥ ثانية
-    setBase(x, dd ? -50 : CAR_Y, z, Math.atan2(hx, hz), CAR_SCALE, CAR_SCALE);
+    setBase(x, CAR_Y, z, Math.atan2(hx, hz), CAR_SCALE, CAR_SCALE);
     car.pool.mesh.setMatrixAt(car.idx, _base);
     car.pool.dirty = true;
-    part(beamPool, car.beam, 0, dd ? -50 : 0.06, 1.25, 2.6, 1, 7.5);
+    part(beamPool, car.beam, 0, 0.06, 1.25, 2.6, 1, 7.5);
     const hl = Math.hypot(hx, hz) || 1; car.px = x; car.pz = z; car.hx = hx / hl; car.hz = hz / hl; // where it is and where it looks (for the cars behind it)
   }
   updateHighwayCars(now);
@@ -3803,8 +3802,7 @@ function tick(now) {
 
   if (tour) tourStep(now); // the boat tour drives the camera; the hands and keys wait
   else {
-    if (wj && wj.on) wj.update(dt); // الطائرة الحربية: الكاميرا تتبعها
-    else if (drive && drive.on) drive.update(dt, Date.now()); // my car: the camera chases it, the road and the houses stop it
+    if (drive && drive.on) drive.update(dt, Date.now()); // my car: the camera chases it, the road and the houses stop it
     else if (walker.on) walkerStep(dt); // my character: the camera follows it, free of the city's limits
     else {
       if (flight) {
@@ -3817,9 +3815,8 @@ function tick(now) {
       steer(dt);
       keepInCity();
     }
-    if (!(wj && wj.on)) controls.update();
+    controls.update();
   }
-  if (wj) wj.frame(dt, now / 1000);
   draw(now, false);
   if (!drawn) { drawn = true; $('#loading').hidden = true; }
 }
@@ -4019,7 +4016,7 @@ function stopWalk() {
 }
 addEventListener('pagehide', () => { if (walker.on) social.dropPlayer(); });
 // ------------------------------------------------------------------ تسوق · قيادة · إشارات مرور
-let hzShop = null, drive = null, traffic = null, wj = null;
+let hzShop = null, drive = null, traffic = null;
 {
   const keyInput = () => ({ x: Math.max(-1, Math.min(1, walker.jx + on('right') - on('left'))), y: Math.max(-1, Math.min(1, walker.jy + on('fwd') - on('back'))) });
   const carInstances = new Map(); // لون → { pool }
@@ -4049,19 +4046,6 @@ let hzShop = null, drive = null, traffic = null, wj = null;
     houseInfo: (rec) => (rec.villa ? 'فيلا 👑' : rec.level === MAX_LEVEL ? 'برج 🏢' : 'مستوى ' + rec.level) + ' · بيت رقم ' + (rec.i + 1),
   });
   window.haretnaShop = hzShop;
-  try { // ✈️ المطار الحربي: يُحمَّل بشكل اختياري، فإن فشل تبقى المدينة تعمل
-    const A0 = AIRPORTS[0];
-    import('./airbase/warjet.js').then((m) => {
-      wj = m.createWarJet({
-        scene, camera, controls, canvas, toast, houses, towns: TOWNS, cars, landmarks: () => landmarkGroups, byName, writeHouse, takeOver, social, getConfig,
-        openShop: () => hzShop.open('car'), at: { x: A0.x, z: A0.z - AIR_SIZE.d / 2 - 130 },
-        stopAll: () => { if (drive && drive.on) drive.stop(); if (walker.on) stopWalk(); },
-      });
-    }).catch((err) => console.warn('airbase:', err));
-  } catch (err) { console.warn('airbase:', err); }
-  const jetBtn = document.createElement('button');
-  jetBtn.id = 'hzJet'; jetBtn.textContent = '✈️'; jetBtn.title = 'طائرتي الحربية'; jetBtn.setAttribute('aria-label', 'طائرتي الحربية');
-  jetBtn.onclick = () => { if (wj) wj.toggle().catch((err) => { console.error(err); toast('تعذّر تشغيل الطائرة'); }); else toast('✈️ ملفات الطائرة غير مرفوعة (مجلد airbase)'); };
   const open = () => hzShop.open();
   $('#drawBtn').addEventListener('click', open);
   $('#cardEnter').addEventListener('click', () => { if (selected) hzShop.openHouse(selected.username); });
@@ -4072,7 +4056,7 @@ let hzShop = null, drive = null, traffic = null, wj = null;
   const shopBtn = document.createElement('button');
   shopBtn.id = 'hzShop'; shopBtn.textContent = '🛍️'; shopBtn.title = 'تسوق'; shopBtn.setAttribute('aria-label', 'تسوق');
   shopBtn.onclick = open;
-  setTimeout(() => { const d = document.querySelector('.hz-dock'); if (d) { d.insertBefore(carBtn, d.querySelector('#hzSpeed')); d.insertBefore(shopBtn, carBtn); d.insertBefore(jetBtn, shopBtn); } }, 0); // the dock is made by social.setup just below
+  setTimeout(() => { const d = document.querySelector('.hz-dock'); if (d) { d.insertBefore(carBtn, d.querySelector('#hzSpeed')); d.insertBefore(shopBtn, carBtn); } }, 0); // the dock is made by social.setup just below
   void dock;
   carBtn.onclick = async () => {
     if (drive.on) return drive.stop();
