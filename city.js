@@ -1802,4 +1802,2391 @@ function trainSmoke(train, length) {
       else {
         const u = age / LIFE, r = (0.3 + 1.05 * Math.sqrt(u)) * (u > 0.75 ? (1 - u) / 0.25 : 1);
         p.set(from[i].x + age * (1.8 + age * 0.6) + Math.sin(born[i] * 5.1) * 0.5 * u, from[i].y + age * 2.2, from[i].z + age * 0.9 + Math.cos(born[i] * 6.7) * 0.5 * u); // the wind bends it over
-        m4.compose(p, q, sc.set(r, r
+        m4.compose(p, q, sc.set(r, r * 0.85, r));
+      }
+      mesh.setMatrixAt(i, m4);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  };
+}
+function buildRailway(lm) {
+  const [sx, sz] = tileOf(SYRIA, lm.block);
+  const LB = townFor('LB'), IQ = townFor('IQ'), JO = townFor('JO');
+  const zEW = (sz - 0.5) * BD, xNS = (sx - 0.5) * BW;
+  const xLB = (LB.ox + 0.5) * BW - 34, xIQ = (IQ.ox + 0.5) * BW + 34; // past the middle of each village
+  const z0 = sz * BD - 6.5, zJO = (JO.oz - 0.5) * BD;                  // to the street just north of Petra
+  const posts = (from, to, step) => { // street crossings between two points of a line
+    const out = [];
+    for (let k = Math.ceil(from / step + 0.5); (k - 0.5) * step < to; k++) out.push((k - 0.5) * step - from);
+    return out;
+  };
+  const mesh = new THREE.Mesh(bake((g) => {
+    viaduct(g, [xLB, zEW], [xIQ, zEW], posts(xLB, xIQ, BW));
+    viaduct(g, [xNS, z0], [xNS, zJO], posts(z0, zJO, BD), { ends: [true, true] });
+    railPlatform(g, [xLB, zEW], 0, 1, 31, { side: -1 });              // Beirut's station, on the village side
+    railPlatform(g, [xIQ, zEW], 0, -31, -1, { side: -1 });            // Baghdad's
+    railPlatform(g, [xNS, zJO], -Math.PI / 2, -31, -1, { side: -1 }); // Amman's
+    bufferStop(g, xLB, zEW, -Math.PI / 2);
+    bufferStop(g, xIQ, zEW, Math.PI / 2);
+    bufferStop(g, xNS, zJO, 0);
+  }), houseMat);
+  mesh.castShadow = mesh.receiveShadow = true;
+  scene.add(mesh);
+  const sign = (text, x, z) => {
+    const s = textSprite(null, 512, 112, 11);
+    pill(s.userData.ctx, 512, 112, text, '#2f6b4f', '#ffffff', 58, 'rtl');
+    s.userData.tex.needsUpdate = true;
+    s.position.set(x, RAIL + 7, z);
+    scene.add(s);
+  };
+  sign('محطة بيروت', xLB + 16, zEW);
+  sign('محطة بغداد', xIQ - 16, zEW);
+  sign('محطة عمّان', xNS, zJO - 16);
+  railAreas = [[xLB - 10, xIQ + 10, zEW - 12, zEW + 12], [xNS - 12, xNS + 12, z0 - 10, zJO + 10]];
+  ownLand.LB = [[xLB - 2, xLB + 34, zEW - 6, zEW + 6]]; // Beirut's and Baghdad's stations, inside their fences
+  ownLand.IQ = [[xIQ - 34, xIQ + 2, zEW - 6, zEW + 6]];
+  // the trains: one on each line, stopping at every station
+  const run = (n, stops, axis, fixed, speed = 15, dwell = 9) => {
+    let length = 0;
+    const m = new THREE.Mesh(bake((g) => { length = trainModel(g, n); }), houseMat);
+    m.castShadow = true;
+    m.raycast = () => {};
+    if (axis === 'z') m.rotation.y = -Math.PI / 2; // the engine towards +z
+    scene.add(m);
+    const legs = []; // there and back again
+    const path = [...stops, ...stops.slice(1, -1).reverse()];
+    let t = 0;
+    for (let i = 0; i < path.length; i++) {
+      const a = path[i], b = path[(i + 1) % path.length], move = Math.abs(b - a) / speed + 6;
+      legs.push({ a, b, t0: t, t1: t + dwell, t2: t + dwell + move });
+      t += dwell + move;
+    }
+    const at = (sec) => {
+      const T = ((sec % t) + t) % t;
+      for (const L of legs) {
+        if (T < L.t1) return L.a;
+        if (T < L.t2) { const u = (T - L.t1) / (L.t2 - L.t1), k = u * u * u * (u * (u * 6 - 15) + 10); return L.a + (L.b - L.a) * k; }
+      }
+      return path[0];
+    };
+    const train = { mesh: m, set(sec) { const v = at(sec); if (axis === 'x') m.position.set(v, RAIL, fixed); else m.position.set(fixed, RAIL, v); } };
+    train.set(0);
+    trains.push(train);
+    if (!reducedMotion) {
+      spinners.push((now) => train.set(now / 1000));
+      const smoke = trainSmoke(train, length);
+      spinners.push((now) => smoke(now / 1000));
+    }
+    return train;
+  };
+  const main = run(3, [xLB + 16, sx * BW, xIQ - 16], 'x', zEW);
+  run(2, [sz * BD + 1.5, zJO - 16], 'z', xNS);
+  if (titles.train) { // «قرعة حارتنا»: this week's driver rides above the long train
+    const tag = titlePill(`🚂 السائق ${handle(titles.train)}`, '#2f6b4f', 12);
+    tag.position.set(0, 6.6, 0);
+    main.mesh.add(tag);
+  }
+}
+
+// ------------------------------------------------------------------ the weekly draw's titles
+// «قرعة حارتنा» (server.js drawTitles, /draw.html): the names the draw's
+// winners earn in the city. The police chiefs (BUILDERS.police), the souq's
+// merchant (BUILDERS.souq) and the train driver (buildRailway) are drawn with
+// their landmarks; the banner plane flies over Damascus. Towers are just houses
+// at the top level.
+let titles = { police: {} };
+const handle = (u) => '\u200E@' + u + '\u200E'; // a handle inside Arabic text, kept left to right with its @ in front
+function titlePill(text, bg, scaleX) {
+  const s = textSprite(null, 640, 112, scaleX);
+  pill(s.userData.ctx, 640, 112, text, bg, '#ffffff', 56, 'rtl');
+  s.userData.tex.needsUpdate = true;
+  s.renderOrder = 3; // over the houses' name tags
+  return s;
+}
+// A little propeller plane towing a banner with the winner's name, round and round over the city.
+let bannerPlane = null;
+function buildPlane(name) {
+  const g = new THREE.Group();
+  const body = new THREE.Group(); // the plane, nose towards +x
+  const red = '#d63a3a', white = '#f4f4f0';
+  solid(body, box, white, 0, 0, 0, 3.6, 0.8, 0.8);
+  solid(body, box, red, 0.2, 0.05, 0, 3.0, 0.22, 0.84);
+  solid(body, box, '#7fa8bf', 0.9, 0.38, 0, 0.8, 0.3, 0.62);         // the cockpit
+  solid(body, box, red, 0.4, 0.42, 0, 1.0, 0.08, 6.2);               // the wing, on top
+  solid(body, box, white, -1.6, 0.1, 0, 0.6, 0.08, 2.2);             // the tail plane
+  solid(body, box, red, -1.65, 0.55, 0, 0.55, 0.9, 0.08);            // the fin
+  solid(body, box, '#3e4750', 1.86, 0, 0, 0.14, 0.3, 0.3);           // the nose
+  const prop = solid(body, box, '#2b2d33', 1.96, 0, 0, 0.06, 1.7, 0.16);
+  body.scale.setScalar(2.6);
+  body.position.x = 3.6;
+  g.add(body);
+  // the banner on its rope, behind the plane: the same words on both sides
+  const BW_ = 22, BH_ = 3.4, gap = 6;
+  const rope = solid(g, box, '#5d5d65', -1.8 - gap / 2, 0, 0, gap, 0.04, 0.04);
+  rope.castShadow = false;
+  const cloth = textBoard(1536, Math.round(1536 * BH_ / BW_), BW_, BH_, { side: THREE.FrontSide });
+  const { ctx, canvas: c } = cloth.userData;
+  ctx.fillStyle = '#fffaf0'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#e1306c'; ctx.fillRect(0, 0, c.width, 16); ctx.fillRect(0, c.height - 16, c.width, 16);
+  ctx.direction = 'rtl'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1d2433';
+  const text = `🎉 ${handle(name)} · رابح قرعة حارتنا`;
+  let f = 150;
+  do { ctx.font = `800 ${f}px Tajawal, system-ui, sans-serif`; f -= 4; } while (ctx.measureText(text).width > c.width - 80 && f > 30);
+  ctx.fillText(text, c.width / 2, c.height / 2 + 8);
+  cloth.userData.tex.needsUpdate = true;
+  cloth.position.set(-1.8 - gap - BW_ / 2, -0.2, 0);
+  const back = cloth.clone();
+  back.rotation.y = Math.PI;
+  g.add(cloth, back);
+  g.traverse((m) => { if (m.isMesh) m.raycast = () => {}; });
+  scene.add(g);
+  const R = 170, H = 70, SPEED = 0.04; // radians a second: about two minutes and a half round
+  const set = (sec) => {
+    const a = sec * SPEED;
+    g.position.set(Math.cos(a) * R, H + Math.sin(a * 3) * 1.5, Math.sin(a) * R);
+    g.rotation.y = -a - Math.PI / 2; // along the circle (towards +a)
+    body.rotation.x = -0.18;          // banking into the turn
+    prop.rotation.x = sec * 40;
+    cloth.position.y = back.position.y = -0.2 + Math.sin(sec * 2.3) * 0.12;
+  };
+  set(0);
+  if (!reducedMotion) spinners.push((now) => set(now / 1000));
+  bannerPlane = { group: g, set };
+}
+
+// ✈️ الأسطول: طائرة ركاب مدنية لكل بلد تدور حول حارتها، وخلفها شريط يرفرف.
+// من لوحة الأدمن (cfg.planes): إضافة وحذف وإخفاء، واسم صاحب الطائرة بعد أن يحصل عليها.
+const DEFAULT_PLANES = ['', 'LB', 'JO', 'IQ', 'MA', 'EG'].map((t, i) => ({ id: i + 1, town: t, owner: '', text: '', active: true }));
+const FLEET_LIVERY = { '': 'syrianair', JO: 'rj', LB: 'mea', IQ: 'iraqi', EG: 'egyptair', SA: 'saudia', PS: 'chamwings', MA: 'emirates', YE: 'qatar' };
+const WAIT_TEXT = 'انتظر… من يحصل عليّ ليكون باسمك';
+function buildFleet(list) {
+  (list || []).forEach((spec, idx) => { if (spec && spec.active !== false) buildFleetPlane(spec, idx); });
+}
+function buildFleetPlane(spec, idx) {
+  const town = townFor(spec.town || ''), cx = (town.ox + 0.5) * BW, cz = (town.oz + 0.5) * BD;
+  const g = new THREE.Group(), plane = makePlane(FLEET_LIVERY[spec.town || ''] || 'syrianair');
+  g.add(plane);
+  const W = 70, H = 9, GAP = 16, TAIL = 24; // the banner on its rope, behind the tail
+  const owner = cleanName(spec.owner);
+  const text = String(spec.text || '').trim() || (owner ? `✈️ هذه الطائرة باسم ${handle(owner)}` : '✈️ ' + WAIT_TEXT);
+  const c = document.createElement('canvas');
+  c.width = 1536; c.height = Math.round(1536 * H / W);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = owner ? '#fff6d6' : '#fffaf0'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#e1306c'; ctx.fillRect(0, 0, c.width, 22); ctx.fillRect(0, c.height - 22, c.width, 22);
+  ctx.direction = 'rtl'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1d2433';
+  let f = 190;
+  do { ctx.font = `800 ${f}px Tajawal, system-ui, sans-serif`; f -= 4; } while (ctx.measureText(text).width > c.width - 120 && f > 30);
+  ctx.fillText(text, c.width / 2, c.height / 2 + 8);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const back = tex.clone(); back.wrapS = THREE.RepeatWrapping; back.repeat.x = -1; back.offset.x = 1; back.needsUpdate = true; // the same words, the right way round, on the other side
+  const geo = new THREE.PlaneGeometry(W, H, 36, 4);
+  const front = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide }));
+  const rear = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: back, side: THREE.BackSide }));
+  front.position.x = rear.position.x = -(TAIL + GAP + W / 2);
+  const rope = solid(g, box, '#5d5d65', -TAIL - GAP / 2, 0, 0, GAP, 0.15, 0.15);
+  rope.castShadow = false;
+  g.add(front, rear);
+  g.traverse((m) => { if (m.isMesh) m.raycast = () => {}; });
+  scene.add(g);
+  const pos = geo.attributes.position, base = Float32Array.from(pos.array);
+  const flutter = (t) => { // the banner waves more the further it is from the rope
+    for (let i = 0; i < pos.count; i++) {
+      const u = (base[i * 3] + W / 2) / W, a = 1 - u; // u = 1 at the rope
+      pos.array[i * 3 + 2] = Math.sin(u * 10 - t * 5.5) * a * 2.2;
+      pos.array[i * 3 + 1] = base[i * 3 + 1] + Math.sin(u * 7 - t * 4) * a * 0.8;
+    }
+    pos.needsUpdate = true;
+  };
+  const R = 250 + idx * 22, Hh = 105 + (idx % 3) * 16, dir = idx % 2 ? -1 : 1, w = dir * 36 / R, phase = idx * 1.1;
+  const set = (sec) => {
+    const a = phase + sec * w;
+    g.position.set(cx + Math.cos(a) * R, Hh + Math.sin(a * 2) * 3, cz + Math.sin(a) * R);
+    g.rotation.y = Math.atan2(-Math.cos(a) * dir, -Math.sin(a) * dir); // nose (+x) along the circle's tangent
+    plane.rotation.x = 0.2 * dir; // banking into the turn
+    flutter(sec);
+    plane.userData.lights(sec);
+  };
+  set(0);
+  if (!reducedMotion) spinners.push((now) => set(now / 1000));
+}
+
+// «السيف الدمشقي» on its roundabout (see SWORD): the glass shines at night and
+// blue beams sweep out over the road from the projectors round it.
+function buildSword() {
+  if (LM_OFF) return;
+  const g = new THREE.Group();
+  g.position.set(SWORD.x, 0.02, SWORD.z); // on the middle of its blocks in Damascus
+  g.scale.setScalar(SWORD_SCALE);
+  const base = new THREE.Mesh(bake(swordRoundabout), houseMat);
+  base.castShadow = base.receiveShadow = true;
+  g.add(base);
+  const fx = swordRoundabout.lights();
+  fx.group.traverse((m) => { if (m.isMesh) m.raycast = () => {}; }); // a tap by a beam is not a tap on the sword
+  g.add(fx.group);
+  townFx.push(...fx.mats);
+  const lit = swordRoundabout.floodlight, light = new THREE.PointLight(lit.color, 0, 60 * SWORD_SCALE, 1);
+  light.position.set(...lit.at);
+  floodlights.push(light);
+  g.add(light);
+  const height = swordRoundabout.top * SWORD_SCALE;
+  const label = textSprite(null, 512, 112, 12 / SWORD_SCALE); // the name the usual size
+  pill(label.userData.ctx, 512, 112, swordRoundabout.label, '#ffffff', '#1d2433', 58, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.y = swordRoundabout.top + 3.5 / SWORD_SCALE;
+  g.add(label);
+  g.userData.entry = { lm: { type: 'sword', name: swordRoundabout.label }, height, x: g.position.x, z: g.position.z };
+  scene.add(g);
+  // the street from the north and the one from the south come into the ring where its kerb is open
+  const half = ((SWORD_TILES[3] - SWORD_TILES[2] + 1) / 2) * BD, w = ROAD_W_SWORD * SWORD_SCALE, len = half - SWORD.r + 3;
+  for (const s of [-1, 1]) {
+    const road = new THREE.Mesh(box, lambert('#3a3d44'));
+    road.scale.set(w, 0.12, len);
+    road.position.set(SWORD.x, 0.06, SWORD.z + s * (half - len / 2));
+    road.receiveShadow = true;
+    scene.add(road);
+  }
+  landmarkGroups.push(g);
+}
+
+// «وادي رم» (see RUM): the desert, the mountains and the bubble camp; the
+// candles, the fire and the bubbles light the sand at night.
+function buildRum() {
+  if (LM_OFF) return;
+  const g = new THREE.Group();
+  g.position.set(RUM.x, 0.02, RUM.z);
+  const base = new THREE.Mesh(bake(wadiRum), houseMat);
+  base.castShadow = base.receiveShadow = true;
+  g.add(base);
+  g.add(wadiRum.shells());
+  const fx = wadiRum.lights();
+  g.add(fx.group);
+  townFx.push(...fx.mats);
+  const lit = wadiRum.floodlight, light = new THREE.PointLight(lit.color, 0, 60, 1);
+  light.position.set(...lit.at);
+  floodlights.push(light);
+  g.add(light);
+  const label = textSprite(null, 640, 112, 16);
+  pill(label.userData.ctx, 640, 112, wadiRum.label + ' · الأردن', '#ffffff', '#1d2433', 58, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.set(-40, wadiRum.top + 4, -20);
+  g.add(label);
+  g.userData.entry = { lm: { type: 'rum', name: wadiRum.label }, height: 20, x: RUM.x, z: RUM.z };
+  scene.add(g);
+  landmarkGroups.push(g);
+}
+
+// ------------------------------------------------------------------ airports
+// «مطار دمشق الدولي» and «مطار الملكة علياء الدولي» (see AIRPORTS): the airfield
+// is one baked mesh; the names, the flag, the radar and two moving planes (one
+// landing, one taking off, over and over) are added here.
+const airportList = [];
+function airlineNames(L, x, y) { // the airline's name on both sides of a plane (plane space: nose +x)
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) {
+    const b = textBoard(1024, 128, 9.6, 1.2);
+    const { ctx, canvas: c } = b.userData;
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.direction = 'rtl'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = L.stripe;
+    let f = 104;
+    do { ctx.font = `800 ${f}px Tajawal, system-ui, sans-serif`; f -= 4; } while (ctx.measureText(L.name).width > c.width - 30 && f > 30);
+    ctx.fillText(L.name, c.width / 2, c.height / 2 + 6);
+    b.userData.tex.needsUpdate = true;
+    b.position.set(x, y, s * 2.08);
+    if (s < 0) b.rotation.y = Math.PI;
+    b.raycast = () => {};
+    g.add(b);
+  }
+  return g;
+}
+// Lights drawn as soft halos (one Points object per colour), sized in metres.
+const haloTex = glowTexture('rgba(255,255,255,1)', 'rgba(255,255,255,0)');
+function halos(points, color, size) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(points.flat(), 3));
+  const mat = new THREE.PointsMaterial({ color, size, map: haloTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const p = new THREE.Points(geo, mat);
+  p.raycast = () => {};
+  p.frustumCulled = false;
+  return p;
+}
+const night = () => Math.max(0, nightShown);
+// A flying plane's lights, as on a real airliner (plane space: nose +x, right wing +z):
+// red and green on the wingtips, white strobes flashing twice a second and a bit,
+// the red beacon on top and below, and the landing lights shining ahead.
+function planeLights(g) {
+  const red = halos([[-6.4, 2.45, -16.0]], '#ff3b30', 3.2), green = halos([[-6.4, 2.45, 16.0]], '#3dff7a', 3.2);
+  const strobe = halos([[-6.6, 2.45, -16.3], [-6.6, 2.45, 16.3], [-21.0, 4.2, 0]], '#ffffff', 9);
+  const beacon = halos([[-1, 5.95, 0], [-1, 1.5, 0]], '#ff2a1a', 4.5);
+  const landing = halos([[3.5, 2.3, -3.2], [3.5, 2.3, 3.2], [12, 1.6, 0]], '#fff4d6', 7);
+  const beamGeo = new THREE.ConeGeometry(4.5, 55, 18, 6, true).translate(0, -27.5, 0).rotateZ(Math.PI / 2), col = [];
+  for (let i = 0; i < beamGeo.attributes.position.count; i++) { const v = Math.pow(Math.max(0, 1 - beamGeo.attributes.position.getX(i) / 55), 1.6); col.push(v, v, v); }
+  beamGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const beamMat = new THREE.MeshBasicMaterial({ color: '#fff1cf', vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.position.set(12.5, 1.8, 0);
+  beam.rotation.z = -0.09; // a little down, towards the runway
+  beam.raycast = () => {};
+  g.add(red, green, strobe, beacon, landing, beam);
+  return (sec) => {
+    const k = night(), day = 0.25 + 0.75 * k;          // the strobes and the beacon show by day too, the rest at night
+    red.material.opacity = green.material.opacity = 0.9 * k;
+    const s = ((sec % 1.2) + 1.2) % 1.2;
+    strobe.material.opacity = (s < 0.05 || (s > 0.13 && s < 0.18) ? 1 : 0) * day;
+    beacon.material.opacity = (((sec + 0.4) % 1.0) < 0.12 ? 1 : 0) * day;
+    landing.material.opacity = 0.95 * k;
+    beamMat.opacity = 0.16 * k;
+  };
+}
+function makePlane(key) {
+  const L = LIVERIES[key], g = new THREE.Group();
+  const m = new THREE.Mesh(bake((p) => airliner(p, L)), houseMat);
+  m.castShadow = true;
+  g.add(m, airlineNames(L, 2.5, 4.55));
+  g.traverse((o) => { if (o.isMesh) o.raycast = () => {}; });
+  g.userData.lights = planeLights(g);
+  return g;
+}
+// The airfield's lights at night: halos round every runway, taxiway and approach
+// light, the floodlight masts and the red obstacle lights (all faded in with the
+// night), the approach lights' "rabbit" running in to the runway, and the tower's
+// beacon turning green and white.
+function airfieldLights(g) {
+  const L = lightSpots(), fixed = [];
+  const add = (pts, color, size, strength) => { if (!pts.length) return; const p = halos(pts, color, size); g.add(p); fixed.push([p.material, strength]); };
+  add(L.white, '#fff3d2', 3.2, 0.95);
+  add(L.green, '#3dff86', 2.6, 0.9);
+  add(L.red, '#ff4436', 2.8, 0.9);
+  add(L.blue, '#4f8dff', 2.6, 0.95);
+  add(L.warm, '#ffe0a0', 14, 0.9);
+  add(L.papiW, '#ffffff', 3, 1);
+  add(L.papiR, '#ff3b30', 3, 1);
+  for (const f of fixed) { townFx.push(f); f[0].opacity = f[1] * night(); }
+  const rabbit = halos([[0, 0, 0]], '#ffffff', 10), obstacle = halos(L.obstacle, '#ff2a1a', 4), beacon = halos([BEACON], '#ffffff', 9);
+  g.add(rabbit, obstacle, beacon);
+  return (sec) => {
+    const k = night();
+    const step = Math.floor(((sec % 0.5) + 0.5) % 0.5 / 0.5 * (L.approach.length + 2));
+    rabbit.visible = step < L.approach.length;
+    if (rabbit.visible) { const [x, y, z] = L.approach[step]; rabbit.geometry.attributes.position.setXYZ(0, x, y, z); rabbit.geometry.attributes.position.needsUpdate = true; }
+    rabbit.material.opacity = k;
+    obstacle.material.opacity = k * (Math.sin(sec * 3) > -0.2 ? 0.95 : 0.25);
+    const b = ((sec % 2) + 2) % 2;
+    beacon.material.color.set(b < 1 ? '#3dff86' : '#ffffff');
+    beacon.material.opacity = k * (b % 1 < 0.35 ? 1 : 0.15);
+  };
+}
+// Where the landing plane and the departing plane are, sec seconds into the airport's cycle (local space).
+const AIR_CYCLE = 76;
+const smooth = (u) => u * u * (3 - 2 * u);
+function landingAt(t) { // 0..40 s: the approach from the west, touchdown, the roll-out, off onto the taxiway
+  const z = RUNWAY.z, gy = GROUND_Y;
+  if (t < 0 || t >= 40) return null;
+  if (t < 16) { const u = t / 16; return { x: -1300 + (RUNWAY.x0 + 70 + 1300) * u, y: gy + 110 * (1 - u), z, yaw: 0, pitch: 0.06 }; }
+  if (t < 30) { const u = (t - 16) / 14; return { x: RUNWAY.x0 + 70 + 380 * (1 - (1 - u) * (1 - u)), y: gy, z, yaw: 0, pitch: 0.06 * Math.max(0, 1 - u * 4) }; }
+  const u = smooth((t - 30) / 10), xe = RUNWAY.x0 + 450; // turning off to the right, onto the link to the taxiway
+  return { x: xe + 30 * Math.sin(u * Math.PI / 2), y: gy, z: z + (TAXI.z - z) * (1 - Math.cos(u * Math.PI / 2)), yaw: -u * Math.PI / 2, pitch: 0 };
+}
+function takeoffAt(t) { // 0..34 s: lining up from the taxiway at the west end, the roll, the climb out to the east
+  const z = RUNWAY.z, gy = GROUND_Y, x0 = RUNWAY.x0 + 30;
+  if (t < 0 || t >= 34) return null;
+  if (t < 8) { const u = smooth(t / 8); return { x: x0 + 16 * Math.sin(u * Math.PI / 2), y: gy, z: TAXI.z + (z - TAXI.z) * Math.sin(u * Math.PI / 2), yaw: Math.PI / 2 * (1 - u), pitch: 0 }; }
+  if (t < 10) return { x: x0 + 16, y: gy, z, yaw: 0, pitch: 0 };
+  if (t < 22) { const u = (t - 10) / 12; return { x: x0 + 16 + 400 * u * u, y: gy, z, yaw: 0, pitch: u > 0.85 ? (u - 0.85) * 1.2 : 0 }; }
+  const u = (t - 22) / 12; // airborne: 66 m/s and climbing
+  return { x: x0 + 416 + 790 * u, y: gy + 170 * u * u + 20 * u, z, yaw: 0, pitch: 0.18 };
+}
+function placePlane(p, at) {
+  p.visible = !!at;
+  if (!at) return;
+  p.position.set(at.x, at.y, at.z);
+  p.rotation.set(0, at.yaw, at.pitch);
+}
+function buildAirports() {
+  if (LM_OFF) return;
+  for (const A of AIRPORTS) {
+    const g = new THREE.Group();
+    g.position.set(A.x, 0.02, A.z);
+    g.rotation.y = A.rot;
+    const base = new THREE.Mesh(bake((m) => { airportModel(m, A); radarMast(m); }), houseMat);
+    base.castShadow = base.receiveShadow = true;
+    g.add(base);
+    const dish = new THREE.Mesh(bake((m) => m.add(radarDish())), houseMat);
+    dish.position.set(RADAR.x, 17.2, RADAR.z);
+    g.add(dish);
+    // the airlines' names on the planes at the gates
+    GATES.forEach((x, i) => {
+      const L = LIVERIES[A.parked[i % A.parked.length]];
+      const names = airlineNames(L, 2.5, 4.55);
+      names.position.set(x, GROUND_Y, STAND_Z);
+      names.rotation.y = -Math.PI / 2;
+      g.add(names);
+    });
+    // the name over the kerb, in Arabic and English
+    const S = AIR_SIGN, sign = textBoard(2048, Math.round(2048 * S.h / S.w), S.w, S.h);
+    { const { ctx, canvas: c } = sign.userData, [bg, fg] = A.sign;
+      ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(0, 0, c.width, c.height, 24); ctx.fill();
+      ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.direction = 'rtl'; ctx.font = '800 64px Tajawal, system-ui, sans-serif'; ctx.fillText(A.name, c.width / 2, c.height * 0.37);
+      ctx.direction = 'ltr'; ctx.font = '700 32px Tajawal, system-ui, sans-serif'; ctx.fillText(A.en, c.width / 2, c.height * 0.76);
+      sign.userData.tex.needsUpdate = true; }
+    sign.position.set(0, S.y, S.z);
+    g.add(sign);
+    const cloth = bigFlagCloth(A.code || 'SY');
+    cloth.position.set(AIR_FLAG.cloth.x, AIR_FLAG.cloth.y, AIR_FLAG.cloth.z);
+    cloth.scale.setScalar(0.8);
+    g.add(cloth);
+    const fx = airportLights();
+    g.add(fx.group);
+    townFx.push(...fx.mats);
+    const light = new THREE.PointLight('#ffe2b0', 0, 120, 1);
+    light.position.set(0, 26, 40);
+    floodlights.push(light);
+    g.add(light);
+    // the planes in the sky and on the runway
+    const landing = makePlane(A.landing), departing = makePlane(A.takeoff);
+    g.add(landing, departing);
+    const fieldLights = airfieldLights(g);
+    const offset = A.seed * 7;
+    const set = (sec) => {
+      const t = (((sec + offset) % AIR_CYCLE) + AIR_CYCLE) % AIR_CYCLE;
+      placePlane(landing, landingAt(t));
+      placePlane(departing, takeoffAt(t - 38));
+      landing.userData.lights(sec);
+      departing.userData.lights(sec + 0.5);
+      fieldLights(sec);
+      dish.rotation.y = sec * 1.2;
+    };
+    set(0);
+    if (!reducedMotion) spinners.push((now) => set(now / 1000));
+    const label = textSprite(null, 768, 112, 26);
+    pill(label.userData.ctx, 768, 112, '✈️ ' + A.name, '#ffffff', '#1d2433', 58, 'rtl');
+    label.userData.tex.needsUpdate = true;
+    label.position.set(0, 60, 0);
+    g.add(label);
+    g.userData.entry = { lm: { type: 'airport', name: A.name, t: A.code }, height: 40, x: A.x, z: A.z };
+    scene.add(g);
+    landmarkGroups.push(g);
+    airportList.push({ ...A, group: g, set, landing, departing });
+  }
+  // The roads in: Damascus's from the Damascus–Baghdad highway north to its gate;
+  // Queen Alia's from the east edge of Jordan's village along the strip kept free
+  // north of the airport (ALIA_ROAD), then into its gate. Palms and lamps all along.
+  const D = AIRPORTS[0], dx = D.x + AIR_ROAD.x;
+  const J = AIRPORTS[1], jx = J.x - AIR_ROAD.x, jz = J.z - AIR_SIZE.d / 2; // the gate (the airport is turned round)
+  const legs = [
+    [dx, D.z + AIR_SIZE.d / 2, dx, -0.5 * BD - HIGHWAY_W / 2],
+    [ALIA_ROAD.x0, ALIA_ROAD.z, jx + 7, ALIA_ROAD.z],
+    [jx, ALIA_ROAD.z + 7, jx, jz + 1],
+  ];
+  setBase(0, 0, 0, 0, 1, 1);
+  const road = new THREE.Mesh(bake((g) => {
+    for (const [x0, z0, x1, z1] of legs) {
+      const alongX = z0 === z1, len = Math.abs(alongX ? x1 - x0 : z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      const at = (u, v, y, lu, lv, h, color) => kitBox(g, color, alongX ? cx + u : cx + v, y, alongX ? cz + v : cz + u, alongX ? lu : lv, h, alongX ? lv : lu);
+      at(0, 0, 0.02, len + 14, 14, 0.12, '#3a3d44');
+      for (let u = -len / 2 + 4; u < len / 2 - 4; u += 8) at(u, 0, 0.14, 4, 0.3, 0.01, '#ecebe4');
+      if (len < 40) continue;
+      let n = 0;
+      for (let u = -len / 2 + 10; u < len / 2 - 6; u += 22) for (const v of [-11, 11]) kitTree(g, alongX ? cx + u : cx + v, alongX ? cz + v : cz + u, 2.4, n++ % 3 === 2 ? 'cypress' : 'palm');
+      for (let u = -len / 2 + 20; u < len / 2 - 6; u += 40) {
+        at(u, 0, 0.02, 0.18, 0.18, 7.2, '#8a8f98');
+        at(u, 0, 7.2, 0.12, 9, 0.12, '#8a8f98');
+        for (const v of [-4, 4]) at(u, v, 6.95, 0.5, 0.9, 0.3, '#f6d77a');
+        for (const v of [-4.5, 4.5]) part(lampLightPool, lampLightPool.add(), alongX ? cx + u : cx + v, 0.2, alongX ? cz + v : cz + u, 13, 1, 13); // its light on the road at night
+      }
+    }
+  }), houseMat);
+  road.receiveShadow = true;
+  scene.add(road);
+  airRoadAreas = legs.map(([x0, z0, x1, z1]) => [Math.min(x0, x1) - 14, Math.max(x0, x1) + 14, Math.min(z0, z1) - 14, Math.max(z0, z1) + 14]);
+  for (const [text, x, z] of [['✈️ إلى مطار دمشق الدولي', dx, -0.5 * BD - HIGHWAY_W / 2 - 26], ['✈️ إلى مطار الملكة علياء الدولي', ALIA_ROAD.x0 + 30, ALIA_ROAD.z]]) {
+    const sign = textSprite(null, 768, 120, 17);
+    pill(sign.userData.ctx, 768, 120, text, '#2f7d5b', '#ffffff', 56, 'rtl');
+    sign.userData.tex.needsUpdate = true;
+    sign.position.set(x, 11, z);
+    scene.add(sign);
+  }
+}
+let airRoadAreas = [];
+
+// «مدرج بصرى» (see BOSRA): the theatre in its citadel and the ruins round it,
+// lit gold at night with torches on the walls and beams sweeping the sky.
+// The portrait of President Ahmed al-Sharaa over Bosra's theatre (models/bosra.js PRESIDENT).
+function buildPresident(g) {
+  const P = PRESIDENT;
+  const frame = new THREE.Mesh(bake(presidentFrame), houseMat);
+  frame.castShadow = frame.receiveShadow = true;
+  g.add(frame);
+  const c = document.createElement('canvas');
+  c.width = 560; c.height = Math.round(560 * P.h / P.w);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#1c2a22'; ctx.fillRect(0, 0, c.width, c.height);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.max(c.width / img.width, c.height / img.height), w = img.width * k, h = img.height * k;
+    ctx.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+    tex.needsUpdate = true;
+  };
+  img.src = IMG('syria-president.jpg');
+  const pic = new THREE.Mesh(new THREE.PlaneGeometry(P.w, P.h), new THREE.MeshBasicMaterial({ map: tex }));
+  pic.position.set(P.x, P.y, P.z);
+  const Q = P.plaque, plaque = textBoard(1280, Math.round(1280 * Q.h / Q.w), Q.w, Q.h);
+  drawPlaque(plaque.userData.ctx, plaque.userData.canvas.width, plaque.userData.canvas.height, NAMES['syria-president.jpg'] || Q.text, { bg: '#0f3d2a', fg: '#f6e7b8', size: 104 });
+  plaque.userData.tex.needsUpdate = true;
+  plaque.position.set(P.x, P.y + Q.dy, P.z + 0.06);
+  const B = P.banner, banner = textBoard(2048, Math.round(2048 * B.h / B.w), B.w, B.h);
+  { const { ctx: b, canvas: bc } = banner.userData;
+    const bg = b.createLinearGradient(0, 0, 0, bc.height);
+    bg.addColorStop(0, '#13643f'); bg.addColorStop(1, '#0b4129');
+    b.fillStyle = bg; b.fillRect(0, 0, bc.width, bc.height);
+    b.strokeStyle = '#e8c35a'; b.lineWidth = 10; b.strokeRect(14, 14, bc.width - 28, bc.height - 28);
+    b.fillStyle = '#f3d27a'; b.direction = 'rtl'; b.textAlign = 'center'; b.textBaseline = 'middle';
+    let size = 150;
+    do { b.font = `800 ${size}px Tajawal, system-ui, sans-serif`; size -= 4; } while (b.measureText(B.text).width > bc.width - 160 && size > 60);
+    b.fillText(B.text, bc.width / 2, bc.height / 2 + 10);
+    banner.userData.tex.needsUpdate = true; }
+  banner.position.set(B.x, B.y, P.z - 1.15 + 0.3);
+  g.add(pic, plaque, banner);
+}
+// The portrait of the martyr hero Abdul Basit al-Sarout beside the president's
+// (models/bosra.js SAROUT). It is its own thing to tap: the card says how many
+// hearts he has and gives him one (heartCard, /api/hearts).
+function buildSarout(g) {
+  const P = SAROUT, s = new THREE.Group();
+  const frame = new THREE.Mesh(bake(saroutFrame), houseMat);
+  frame.castShadow = frame.receiveShadow = true;
+  const c = document.createElement('canvas');
+  c.width = 560; c.height = Math.round(560 * P.h / P.w);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#1c2a22'; ctx.fillRect(0, 0, c.width, c.height);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const img = new Image();
+  img.onload = () => { // cover the frame, keeping the face (a little above the middle) in it
+    const k = Math.max(c.width / img.width, c.height / img.height), w = img.width * k, h = img.height * k;
+    ctx.drawImage(img, (c.width - w) / 2, Math.min(0, (c.height - h) * 0.4), w, h);
+    tex.needsUpdate = true;
+  };
+  img.src = IMG('sarout.jpg');
+  const pic = new THREE.Mesh(new THREE.PlaneGeometry(P.w, P.h), new THREE.MeshBasicMaterial({ map: tex }));
+  pic.position.set(P.x, P.y, P.z);
+  const Q = P.plaque, plaque = textBoard(1280, Math.round(1280 * Q.h / Q.w), Q.w, Q.h);
+  const QL = NAMES['sarout.jpg'] ? (NAMES['sarout.jpg'].includes('|') ? NAMES['sarout.jpg'].split('|') : ['', NAMES['sarout.jpg']]) : Q.lines;
+  { const { ctx: b, canvas: bc } = plaque.userData;
+    b.fillStyle = '#0f3d2a'; b.beginPath(); b.roundRect(0, 0, bc.width, bc.height, 26); b.fill();
+    b.direction = 'rtl'; b.textAlign = 'center'; b.textBaseline = 'middle';
+    b.fillStyle = '#ff8a8a'; b.font = '800 96px Tajawal, system-ui, sans-serif';
+    b.fillText(QL[0], bc.width / 2, bc.height * 0.3);
+    b.fillStyle = '#f6e7b8';
+    let size = 124;
+    do { b.font = `800 ${size}px Tajawal, system-ui, sans-serif`; size -= 2; } while (b.measureText(QL[1]).width > bc.width - 80 && size > 40);
+    b.fillText(QL[1], bc.width / 2, bc.height * 0.68);
+    plaque.userData.tex.needsUpdate = true; }
+  plaque.position.set(P.x, P.y + Q.dy, P.z + 0.06);
+  s.add(frame, pic, plaque);
+  s.userData.entry = { lm: { type: 'hearts', name: 'الشهيد البطل عبد الباسط الساروت' }, hearts: 'sarout', x: BOSRA.x + P.x, z: BOSRA.z + P.z, y: P.y };
+  g.add(s);
+}
+function buildBosra() {
+  for (let b = 1; b < 120; b++) { const [bx, bz] = tileOf(SYRIA, b); if (inBosra(bx, bz)) paveBlock(SYRIA, b); } // asphalt under it, no markings or lamps
+  if (LM_OFF) return;
+  const g = new THREE.Group();
+  g.position.set(BOSRA.x, 0.34, BOSRA.z); // over the blocks' lawns
+  const base = new THREE.Mesh(bake(bosra), houseMat); // baking it also tells where the lights and the flag go
+  base.castShadow = base.receiveShadow = true;
+  g.add(base);
+  const fx = bosra.lights();
+  g.add(fx.group);
+  townFx.push(...fx.mats);
+  if (reducedMotion) fx.update(1.3);
+  else spinners.push((now) => fx.update(now / 1000));
+  const F = bosra.flag, cloth = bigFlagCloth('SY');
+  cloth.position.set(F.x, F.y, F.z);
+  cloth.scale.setScalar(F.scale);
+  g.add(cloth);
+  const lit = bosra.floodlight, light = new THREE.PointLight(lit.color, 0, 70, 1);
+  light.position.set(...lit.at);
+  floodlights.push(light);
+  g.add(light);
+  buildPresident(g);
+  buildSarout(g);
+  const label = textSprite(null, 640, 112, 18);
+  pill(label.userData.ctx, 640, 112, bosra.label + ' · سوريا', '#ffffff', '#1d2433', 58, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.set(0, PRESIDENT.banner.y + 9, -4); // over the president's portrait
+  g.add(label);
+  g.userData.entry = { lm: { type: 'bosra', name: bosra.label }, height: bosra.top, x: BOSRA.x, z: BOSRA.z };
+  scene.add(g);
+  landmarkGroups.push(g);
+}
+
+// «نواعير حماة» (models/norias.js): on the blocks the server gave them (lm.tiles), at
+// the northern edge of Damascus towards Hama. The stone and the gardens are one baked
+// mesh; each wheel is its own and turns with the current; the water moves.
+const noriaAreas = [];
+function buildNorias(lm) {
+  const [x0, x1, z0, z1] = lm.tiles, cx = ((x0 + x1) / 2) * BW, cz = ((z0 + z1) / 2) * BD;
+  const g = new THREE.Group();
+  g.position.set(cx, 0.02, cz);
+  const base = new THREE.Mesh(bake(norias), houseMat);
+  base.castShadow = base.receiveShadow = true;
+  g.add(base);
+  const water = norias.water(), wheels = [];
+  g.add(water.group);
+  for (const w of NORIA_WHEELS) {
+    const m = new THREE.Mesh(bake((wg) => noriaWheel(wg, w)), houseMat);
+    m.position.set(w.x, w.yc, w.z);
+    m.castShadow = true;
+    m.raycast = () => {};
+    g.add(m);
+    wheels.push({ mesh: m, w });
+  }
+  water.setWheels(wheels);
+  if (reducedMotion) water.update(0);
+  else spinners.push((now) => water.update(now / 1000));
+  const fx = norias.lights();
+  g.add(fx.group);
+  townFx.push(...fx.mats);
+  const lit = norias.floodlight, light = new THREE.PointLight(lit.color, 0, 70, 1);
+  light.position.set(...lit.at);
+  floodlights.push(light);
+  g.add(light);
+  const label = textSprite(null, 640, 112, 18);
+  pill(label.userData.ctx, 640, 112, (lm.name || norias.label) + ' · سوريا', '#ffffff', '#1d2433', 58, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.set(NORIA_WHEELS[0].x, norias.top + 6, NORIA_WHEELS[0].z);
+  g.add(label);
+  g.userData.entry = { lm, height: norias.top, x: cx + NORIA_WHEELS[0].x, z: cz };
+  const [w, d] = norias.size;
+  noriaAreas.push([cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2]);
+  scene.add(g);
+  landmarkGroups.push(g);
+}
+
+// «ستاد الملك عبدالله الثاني» (models/stadium.js): on the blocks the server gave it in
+// Jordan's village (lm.tiles), a match on between Al-Wehdat and Al-Faisaly.
+function buildStadium(lm) {
+  const [x0, x1, z0, z1] = lm.tiles, cx = ((x0 + x1) / 2) * BW, cz = ((z0 + z1) / 2) * BD;
+  const g = new THREE.Group();
+  g.position.set(cx, 0.02, cz);
+  const base = new THREE.Mesh(bake(stadium), houseMat);
+  base.castShadow = base.receiveShadow = true;
+  g.add(base);
+  g.add(stadium.bowl());
+  const match = stadium.match();
+  g.add(match.group);
+  if (reducedMotion) match.update(0);
+  else spinners.push((now) => match.update(now / 1000));
+  const fx = stadium.lights();
+  g.add(fx.group);
+  townFx.push(...fx.mats);
+  const lit = stadium.floodlight, light = new THREE.PointLight(lit.color, 0, 120, 1);
+  light.position.set(...lit.at);
+  floodlights.push(light);
+  g.add(light);
+  const label = textSprite(null, 640, 112, 20);
+  pill(label.userData.ctx, 640, 112, (lm.name || stadium.label) + ' · الأردن', '#ffffff', '#1d2433', 58, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.set(0, stadium.top + 4, 0);
+  g.add(label);
+  g.userData.entry = { lm, height: 30, x: cx, z: cz };
+  const [w, d] = stadium.size;
+  noriaAreas.push([cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2]);
+  scene.add(g);
+  landmarkGroups.push(g);
+}
+
+// The boat tour inside Jeita Grotto (the user, 2026-11-23: «بدي انو الناس يقدو ياخدو جولة
+// داخلها»): from its card (or ?tour=jeita) the camera sits in the back of the first boat
+// and rides the boats' own path, in through the mouth, round the lit lake under the
+// stalactites, and back out to the jetty, about a minute; ✕ ends it at any time.
+const grottoes = []; // { g, water } for each grotto built
+let tour = null;
+const TOUR_SPEED = 3.0; // metres a second
+const JEITA_BACK = -9, JEITA_DEEP = -34, JEITA_LAKE = [-10, -27]; // models/jeita.js: where the cave begins; the far end of the lake; its middle
+const _tp = new THREE.Vector3(), _tt = new THREE.Vector3(), _ta = new THREE.Vector3();
+function startTour() {
+  const G = grottoes[0];
+  if (!G || tour) return;
+  showCard(false);
+  flight = null;
+  tour = { G, t0: performance.now(), dur: (G.water.total / TOUR_SPEED) * 1000, text: '' };
+  document.body.classList.add('touring');
+  $('#tourBar').hidden = false;
+}
+function stopTour() {
+  if (!tour) return;
+  const { G } = tour;
+  tour = null;
+  G.water.ride.k = null;
+  document.body.classList.remove('touring');
+  $('#tourBar').hidden = true;
+  const e = G.g.userData.entry;
+  flyView(e.view[0], e.view[1], 1800);
+  toast('🚤 رجعنا عالرصيف · شكراً لزيارتكم مغارة جعيتا', 4000);
+}
+function tourStep(now) {
+  const k = Math.min(1, (now - tour.t0) / tour.dur), text = tourView(tour.G, k);
+  if (tour.text !== text) { tour.text = text; $('#tourText').textContent = text; }
+  if (k >= 1) stopTour();
+}
+// The camera in the boat at k (0..1) of the tour; returns what the bar says there. (Also for reels: city.tourAt.)
+function tourView(G, k) {
+  const W = G.water, at = G.g.position;
+  W.ride.k = k;
+  W.path.getPointAt(k, _tp); W.path.getTangentAt(k, _ta);
+  W.path.getPointAt(Math.min(1, k + 12 / W.total), _tt);
+  const inside = _tp.z < JEITA_BACK;
+  camera.position.set(at.x + _tp.x - _ta.x * 2.6, 2.95, at.z + _tp.z - _ta.z * 2.6);
+  const lean = inside ? 0.45 : 0; // inside, the eyes turn partly to the middle of the lake, not the walls at the turns
+  controls.target.set(at.x + _tt.x + (JEITA_LAKE[0] - _tt.x) * lean, inside ? 5.5 : 2.6, at.z + _tt.z + (JEITA_LAKE[1] - _tt.z) * lean);
+  camera.lookAt(controls.target);
+  return !inside ? (k < 0.5 ? '🚤 على نهر الكلب… داخلين على المغارة' : '☀️ طالعين من المغارة… راجعين عالرصيف')
+    : _tp.z < JEITA_DEEP ? '💧 البحيرة الجوفية تحت الجبل' : '✨ هوابط وصواعد عمرها آلاف السنين';
+}
+
+// «مغارة جعيتا» (models/jeita.js): on the blocks the server gave it in Lebanon's village
+// (lm.tiles): the mountain, the cave lit inside, the river and its boats, the cable car.
+function buildJeita(lm) {
+  const [x0, x1, z0, z1] = lm.tiles, cx = ((x0 + x1) / 2) * BW, cz = ((z0 + z1) / 2) * BD;
+  const g = new THREE.Group();
+  g.position.set(cx, 0.02, cz);
+  const base = new THREE.Mesh(bake(jeita), houseMat); // baking it also tells where its flag flies (jeita.flag)
+  base.castShadow = base.receiveShadow = true;
+  g.add(base);
+  g.add(jeita.cave());
+  const water = jeita.water();
+  water.group.userData.update = water.update; // for still pictures (the page's loop sleeps in a hidden tab)
+  grottoes.push({ g, water });
+  g.add(water.group);
+  if (reducedMotion) water.update(0);
+  else spinners.push((now) => water.update(now / 1000));
+  const fx = jeita.lights();
+  g.add(fx.group);
+  townFx.push(...fx.mats);
+  const lit = jeita.floodlight, light = new THREE.PointLight(lit.color, 0, 90, 1);
+  light.position.set(...lit.at);
+  floodlights.push(light);
+  g.add(light);
+  const F = jeita.flag, cloth = bigFlagCloth('LB');
+  cloth.position.set(F.x, F.y, F.z);
+  cloth.scale.setScalar(F.scale);
+  g.add(cloth);
+  const S = jeita.sign, sign = textBoard(1024, Math.round((1024 * S.h) / S.w), S.w, S.h);
+  drawPlaque(sign.userData.ctx, sign.userData.canvas.width, sign.userData.canvas.height, 'مغارة جعيتا', { bg: '#3d6b50', fg: '#f6e7b8', size: 70 });
+  sign.userData.tex.needsUpdate = true;
+  sign.position.set(S.x, S.y, S.z);
+  g.add(sign);
+  const label = textSprite(null, 640, 112, 22);
+  pill(label.userData.ctx, 640, 112, (lm.name || jeita.label) + ' · لبنان', '#ffffff', '#1d2433', 58, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.set(-10, jeita.top, -20);
+  g.add(label);
+  g.userData.entry = { lm, height: 40, x: cx - 10, z: cz, tour: true,
+    view: [new THREE.Vector3(cx + 55, 75, cz + 150), new THREE.Vector3(cx - 5, 12, cz - 10)] };
+  const [w, d] = jeita.size;
+  noriaAreas.push([cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2]);
+  scene.add(g);
+  landmarkGroups.push(g);
+}
+
+// «بوليفارد العبدلي» (see ABDALI): the boulevard and the Rotana tower, its crown
+// in changing colours at night.
+function buildAbdali() {
+  const JO = townOf.get('JO');
+  for (let b = 4; b < 1000; b++) { const [bx, bz] = tileOf(JO, b); if (inAbdali(bx, bz)) paveBlock(JO, b); } // asphalt under it, no markings or lamps
+  if (LM_OFF) return;
+  const g = new THREE.Group();
+  g.position.set(ABDALI.x, 0.34, ABDALI.z); // over the blocks' lawns
+  const base = new THREE.Mesh(bake(abdali), houseMat);
+  base.castShadow = base.receiveShadow = true;
+  g.add(base);
+  const fx = abdali.lights();
+  g.add(fx.group);
+  townFx.push(...fx.mats);
+  if (reducedMotion) fx.update(1.3);
+  else spinners.push((now) => fx.update(now / 1000));
+  const lit = abdali.floodlight, light = new THREE.PointLight(lit.color, 0, 60, 1);
+  light.position.set(...lit.at);
+  floodlights.push(light);
+  g.add(light);
+  const label = textSprite(null, 640, 112, 18);
+  pill(label.userData.ctx, 640, 112, abdali.label + ' · الأردن', '#ffffff', '#1d2433', 58, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.set(0, abdali.top + 4, 3);
+  g.add(label);
+  g.userData.entry = { lm: { type: 'abdali', name: abdali.label, t: 'JO' }, height: abdali.top, x: ABDALI.x, z: ABDALI.z };
+  scene.add(g);
+  landmarkGroups.push(g);
+}
+
+// ------------------------------------------------------------------ flags
+// A house can fly its owner's country flag. Each country gets one picture
+// and one instanced mesh, so thousands of flags stay cheap.
+const FLAG_CDN = 'https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/';
+const flagPlane = new THREE.PlaneGeometry(1, 1);
+const polePool = new Pool(cyl, lambert('#eef1f4'));
+poolList.push(polePool);
+const flags = new Map(); // country code -> { pool }
+let countryNames = {};   // country code -> Arabic name, from the server
+
+function flagFor(code) {
+  let f = flags.get(code);
+  if (f) return f;
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 96;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#dfe3ea'; // plain cloth until the picture arrives
+  ctx.fillRect(0, 0, c.width, c.height);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pool = new Pool(flagPlane, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }), { cast: false });
+  poolList.push(pool);
+  f = { pool };
+  flags.set(code, f);
+  // The flag files are SVGs with no size of their own; give them one so every browser can paint them.
+  fetch(FLAG_CDN + code.toLowerCase() + '.svg')
+    .then((r) => (r.ok ? r.text() : Promise.reject(new Error('no flag'))))
+    .then((svg) => {
+      const img = new Image();
+      img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); tex.needsUpdate = true; f.loaded = true; flagSquareDirty = true; };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg width="640" height="480" '));
+    })
+    .catch(() => {});
+  return f;
+}
+
+function hidePart(pool, idx) {
+  _out.makeScale(0, 0, 0);
+  pool.mesh.setMatrixAt(idx, _out);
+  pool.dirty = true;
+}
+
+// Raises, changes or lowers the flag of a house.
+function setCountry(rec, code) {
+  code = /^[A-Z]{2}$/.test(code || '') ? code : '';
+  if (rec.country === code) return;
+  flagSquareDirty = true; // the square and its screen count this house
+  if (rec.flag) hidePart(rec.flag.pool, rec.flag.idx);
+  rec.flag = null;
+  rec.country = code;
+  if (code) {
+    const pool = flagFor(code).pool;
+    rec.flag = { pool, idx: pool.add() };
+    if (rec.pole == null) rec.pole = polePool.add();
+  } else if (rec.pole != null) {
+    hidePart(polePool, rec.pole);
+  }
+  if (rec.s != null) writeHouse(rec, rec.s);
+  if (rec === selected) showHouseCard(rec);
+}
+
+// ------------------------------------------------------------------ houses
+// Each level is a different house (models/houses.js), and each comes in a few
+// looks. A whole house is one baked geometry, drawn as instances: a detailed
+// copy for houses near the camera and a light copy for the rest.
+const MODEL_SCALE = 0.93; // the models are drawn a touch larger than a plot
+const houseMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+// At night (nightU = 1) the parts marked in models/kit.js light up: windows
+// glow warm (a few houses keep theirs dim), lanterns and the mosque's gold
+// shine in their own colours.
+const nightU = { value: 0 };
+houseMat.onBeforeCompile = (sh) => {
+  sh.uniforms.uNight = nightU;
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\nattribute float glow;\nvarying float vGlow;')
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+      vGlow = glow;
+      #ifdef USE_INSTANCING
+        float houseLuck = fract(sin(float(gl_InstanceID) * 12.9898 + 4.1) * 43758.5453);
+        if (glow <= 1.0) vGlow = glow * (houseLuck < 0.18 ? 0.25 : 0.7 + 0.3 * houseLuck);
+      #endif`);
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nuniform float uNight;\nvarying float vGlow;')
+    .replace('#include <opaque_fragment>', `if (vGlow > 0.001 && uNight > 0.001) {
+        if (vGlow < 1.5) outgoingLight = mix(outgoingLight, vec3(1.0, 0.64, 0.28) * (0.35 + 0.8 * vGlow), uNight * min(1.0, vGlow + 0.2));
+        else outgoingLight = mix(outgoingLight, diffuseColor.rgb * (vGlow - 1.3), uNight * 0.9);
+      }
+      #include <opaque_fragment>`);
+};
+carPools = CAR_COLORS.map((color) => {
+  const p = new Pool(bake((g) => carModel(g, 0, 0, color)), houseMat);
+  poolList.push(p);
+  return p;
+});
+const models = new Map(); // "level/look" (Syria) or "JO/look" (a village) -> { near, far, owners, top, flag }
+function modelFor(kind, spec, look) {
+  const key = kind + '/' + look;
+  let m = models.get(key);
+  if (!m) {
+    const build = spec.build || spec; // a village's house is the build function itself, carrying looks, top and flag
+    m = {
+      near: new Pool(bake(build, spec.looks[look], false), houseMat, { receive: true }),
+      far: new Pool(bake(build, spec.looks[look], true), houseMat, { cast: false }),
+      owners: [], // which house holds each detailed copy
+      top: spec.top, flag: spec.flag,
+    };
+    poolList.push(m.near, m.far);
+    models.set(key, m);
+  }
+  return m;
+}
+
+// Design preview of the app users' villa (2026-11-22): ?debug&villa=name1,name2 draws those houses as villas.
+const VILLA_PREVIEW = (() => { const q = new URLSearchParams(location.search); return new Set(q.has('debug') && q.get('villa') ? q.get('villa').toLowerCase().split(',') : []); })();
+const houses = [];           // index = house number - 1; null = removed
+const byName = new Map();    // lowercase username -> record
+const growing = [];          // houses currently popping up
+
+const tileRecs = new Map();  // "bx,bz" -> the houses on that block
+
+// townCode: the village the house is in ('' = Syria). Its plot is the next of that town.
+function addHouse(username, level, delay, country, townCode, isVilla = false) {
+  const i = houses.length;
+  const town = townFor(townCode);
+  if (!username) { // removed: one removed before the houses were drawn in (level 0) takes no plot; one since keeps its plot empty
+    if (level) plotOf(town, town.count++);
+    houses.push(null);
+    return null;
+  }
+  const plot = plotOf(town, town.count++);
+  ensureBlock(town, plot.b);
+  paveBlock(town, plot.b);
+  const h = hash(username.toLowerCase());
+  let model;
+  level = Math.max(1, Math.min(MAX_LEVEL, level || 1));
+  if (isVilla || VILLA_PREVIEW.has(username.toLowerCase())) { // the app users' villa (models/villa.js); ?debug&villa=a,b previews it
+    model = modelFor('villa', villa, h % villa.looks.length);
+  } else if (level === MAX_LEVEL) { // a tall block of flats, the same in every town (models/levels.js)
+    model = modelFor('tower', tower, h % tower.looks.length);
+  } else if (town.code) { // a village: the country's own house, on one or two floors of shops and flats from level 2
+    const spec = level === 1 ? town.house : onFloors(town.house, level - 1);
+    model = modelFor(town.code + level, spec, h % town.house.looks.length);
+  } else {
+    const spec = HOUSE_LEVELS[level - 1];
+    model = modelFor(level, spec, h % spec.looks.length);
+  }
+  const rec = {
+    i, username, level, villa: !!isVilla || VILLA_PREVIEW.has(username.toLowerCase()), town, x: plot.x, z: plot.z, rot: plot.rot,
+    model, far: model.far.add(), near: -1, top: model.top * MODEL_SCALE,
+    country: '', flag: null, pole: null, s: null,
+  };
+  if (country) setCountry(rec, country);
+  houses.push(rec);
+  town.live = (town.live || 0) + 1;
+  const tile = plot.bx + ',' + plot.bz;
+  if (!tileRecs.has(tile)) tileRecs.set(tile, []);
+  tileRecs.get(tile).push(rec);
+  byName.set(username.toLowerCase(), rec);
+  if (delay == null || reducedMotion) writeHouse(rec, 1);
+  else { writeHouse(rec, 0); growing.push({ rec, t0: performance.now() + delay }); }
+  return rec;
+}
+
+// Places a house at size s (0 = not built yet, 1 = full size).
+function writeHouse(r, s) {
+  r.s = s;
+  const m = r.model;
+  setBase(r.x, BASE_Y, r.z, r.rot, (0.55 + 0.45 * s) * MODEL_SCALE, Math.max(s, 0.0001) * MODEL_SCALE);
+  if (r.near >= 0) {
+    m.near.mesh.setMatrixAt(r.near, _base);
+    m.near.dirty = true;
+    m.far.mesh.setMatrixAt(r.far, _out.makeScale(0, 0, 0));
+  } else {
+    m.far.mesh.setMatrixAt(r.far, _base);
+  }
+  m.far.dirty = true;
+  if (r.flag) { // a pole on the roof, the flag flying from its top
+    const [fx, fy, fz] = m.flag;
+    part(polePool, r.pole, fx, fy + 1.5, fz, 0.07, 3.0, 0.07);
+    part(r.flag.pool, r.flag.idx, fx + 1.05, fy + 2.3, fz, 2.0, 1.4, 1);
+  }
+}
+
+// Only the houses around the spot being looked at are drawn in full detail;
+// the rest of the city uses the light version of the same house.
+const nearSet = new Set();
+const NEAR_BLOCKS = matchMedia('(pointer: coarse)').matches ? 2 : 3;
+const NEAR_DISTANCE = 330;
+function setNear(rec, on) {
+  if (on === (rec.near >= 0)) return;
+  const m = rec.model;
+  if (on) {
+    rec.near = m.near.add();
+    m.owners[rec.near] = rec;
+    nearSet.add(rec);
+  } else {
+    const last = m.near.count - 1, moved = m.owners[last];
+    if (moved !== rec) { // keep the detailed copies packed: the last one takes the freed place
+      m.near.mesh.getMatrixAt(last, _out);
+      m.near.mesh.setMatrixAt(rec.near, _out);
+      moved.near = rec.near;
+      m.owners[rec.near] = moved;
+    }
+    m.owners.length = last;
+    m.near.drop();
+    rec.near = -1;
+    nearSet.delete(rec);
+  }
+  writeHouse(rec, rec.s);
+}
+function updateDetail() {
+  const t = controls.target;
+  const want = new Set(camera.position.distanceTo(t) < NEAR_DISTANCE ? nearbyHouses(t.x, t.z, NEAR_BLOCKS) : []);
+  for (const rec of [...nearSet]) if (!want.has(rec)) setNear(rec, false);
+  for (const rec of want) setNear(rec, true);
+}
+
+// Where the name tag of a house floats: above the roof, or above the flag.
+function tagY(rec) {
+  const roof = rec.flag ? Math.max(rec.top, (rec.model.flag[1] + 3.0) * MODEL_SCALE) : rec.top;
+  return BASE_Y + roof + 1.1;
+}
+
+const easeOutBack = (t) => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
+
+// "Your house here?" marker on the next free plot of every town; a village's
+// says which word to comment to live there.
+const padMat = new THREE.MeshBasicMaterial({ color: '#ffd23f', transparent: true, opacity: 0.5 });
+function makeNextSign(text) {
+  const sign = new THREE.Group();
+  const post = new THREE.Mesh(box, lambert('#8a5a3a'));
+  post.scale.set(0.18, 2.4, 0.18); post.position.y = 1.2;
+  const label = textSprite(null, 512, 128, 7);
+  pill(label.userData.ctx, 512, 128, text, '#e1306c', '#ffffff', 60, 'rtl');
+  label.userData.tex.needsUpdate = true;
+  label.position.y = 3.3;
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), padMat);
+  pad.rotation.x = -Math.PI / 2; pad.position.y = 0.03;
+  sign.add(post, label, pad);
+  scene.add(sign);
+  return sign;
+}
+const nextSign = makeNextSign('بيتك هون؟ 🏠');
+for (const t of TOWNS) t.sign = t.code ? makeNextSign(`علّق «${t.name}» 🏠`) : nextSign;
+function placeNextSign() {
+  for (const t of TOWNS) {
+    const plot = plotOf(t, t.count);
+    ensureBlock(t, plot.b);
+    t.sign.position.set(plot.x, BASE_Y, plot.z);
+  }
+}
+
+// ------------------------------------------------------------------ labels
+const LABELS = 26;
+const labels = [];
+for (let i = 0; i < LABELS; i++) {
+  // A name tag is a fixed size in the city, about as wide as a house, so it
+  // shrinks and grows with its house and never covers the neighbours.
+  const s = textSprite(null, 384, 96, 5.4);
+  s.visible = false;
+  s.userData.rec = null;
+  scene.add(s);
+  labels.push(s);
+}
+let selected = null;
+
+function nearbyHouses(x, z, radius) {
+  const out = [];
+  const cbx = Math.round(x / BW), cbz = Math.round(z / BD);
+  for (let dx = -radius; dx <= radius; dx++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      const list = tileRecs.get((cbx + dx) + ',' + (cbz + dz));
+      if (list) out.push(...list);
+    }
+  }
+  return out;
+}
+
+function drawLabel(sprite, rec) {
+  const { ctx, canvas: c, tex } = sprite.userData;
+  const on = rec === selected;
+  const bd = hzShop ? hzShop.badgeOf(rec.username) : '';
+  pill(ctx, c.width, c.height, '@' + rec.username + (bd ? ' ✔' : ''), on ? '#e1306c' : bd === 'gold' ? '#f5b800' : bd === 'blue' ? '#1d9bf0' : 'rgba(255,255,255,.94)', on ? '#ffffff' : bd === 'gold' ? '#3a2a00' : bd === 'blue' ? '#ffffff' : '#1d2433', 44);
+  tex.needsUpdate = true;
+  sprite.userData.rec = rec;
+  sprite.userData.on = on;
+  sprite.position.set(rec.x, tagY(rec), rec.z);
+  sprite.renderOrder = on ? 2 : 1;
+  sprite.visible = true;
+}
+
+function updateLabels() {
+  const t = controls.target;
+  let want = [];
+  if (camera.position.distanceTo(t) < 150) {
+    // A tag right in front of the camera would fill the screen, so those are left out.
+    const cx = camera.position.x, cz = camera.position.z;
+    // Nor does a plot whose house has not come up yet get one.
+    want = nearbyHouses(t.x, t.z, 2).filter((rec) => rec.s > 0.5 && (rec.x - cx) ** 2 + (rec.z - cz) ** 2 > 14 * 14);
+    want.sort((a, b) => ((a.x - t.x) ** 2 + (a.z - t.z) ** 2) - ((b.x - t.x) ** 2 + (b.z - t.z) ** 2));
+    want.length = Math.min(want.length, LABELS);
+  }
+  if (selected && !want.includes(selected)) { want.unshift(selected); want.length = Math.min(want.length, LABELS); }
+  const wanted = new Set(want);
+  const shown = new Set();
+  const free = [];
+  for (const s of labels) {
+    const rec = s.userData.rec;
+    if (rec && wanted.has(rec)) {
+      shown.add(rec);
+      if (s.userData.on !== (rec === selected)) drawLabel(s, rec);
+    } else { s.visible = false; s.userData.rec = null; free.push(s); }
+  }
+  for (const rec of want) if (!shown.has(rec) && free.length) drawLabel(free.pop(), rec);
+}
+
+// ------------------------------------------------------------------ selection
+const marker = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 4), new THREE.MeshBasicMaterial({ color: '#e1306c' }));
+marker.rotation.x = Math.PI;
+marker.visible = false;
+scene.add(marker);
+
+let flight = null;
+// How high the camera looks when it is far away. A view of a tall landmark
+// aims at its middle; zooming in from there brings the aim down to the street,
+// so houses can always be reached. Set by every flight and by the home view.
+let liftY = 2, liftDist = 1;
+function setLift(p, t) { liftY = t.y; liftDist = Math.max(1, p.distanceTo(t)); }
+
+function flyView(toP, toT, dur = 1400) {
+  flight = {
+    t0: performance.now(), dur: reducedMotion ? 1 : dur,
+    fromP: camera.position.clone(), fromT: controls.target.clone(), toP, toT,
+  };
+  setLift(toP, toT);
+  controls.autoRotate = false;
+}
+function flyTo(x, z, height, front) {
+  flyView(
+    new THREE.Vector3(x + 10 + height * 0.5, 14 + height * 0.7, z + front * (24 + height * 1.3)),
+    new THREE.Vector3(x, 2 + height * 0.42, z),
+  );
+}
+
+// ------------------------------------------------------------------ moving around
+// Arrow keys / WASD walk, Q and E turn, + and - zoom. The buttons on screen
+// do the same: an action stays "held" for as long as its key or button is down.
+const held = new Set();
+const KEYS = {
+  ArrowUp: 'fwd', KeyW: 'fwd', ArrowDown: 'back', KeyS: 'back',
+  ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+  KeyQ: 'rotL', KeyE: 'rotR',
+  Equal: 'in', NumpadAdd: 'in', Minus: 'out', NumpadSubtract: 'out',
+};
+const _off = new THREE.Vector3(), _fwd = new THREE.Vector3(), _side = new THREE.Vector3();
+const on = (a) => (held.has(a) ? 1 : 0);
+
+function steer(dt) {
+  if (!held.size) return;
+  const t = controls.target;
+  _off.subVectors(camera.position, t);
+  const dist = _off.length();
+  _fwd.set(-_off.x, 0, -_off.z);
+  if (_fwd.lengthSq() < 1e-6) _fwd.set(0, 0, -1);
+  _fwd.normalize();
+  _side.set(-_fwd.z, 0, _fwd.x);
+  const step = Math.max(14, dist * 0.5) * dt; // further away = bigger steps
+  _p.set(0, 0, 0)
+    .addScaledVector(_fwd, (on('fwd') - on('back')) * step)
+    .addScaledVector(_side, (on('right') - on('left')) * step);
+  t.add(_p);
+  camera.position.add(_p);
+  const turn = (on('rotL') - on('rotR')) * 1.5 * dt;
+  const zoom = on('in') - on('out');
+  if (turn || zoom) {
+    _off.subVectors(camera.position, t);
+    if (turn) _off.applyAxisAngle(UP, turn);
+    if (zoom) _off.setLength(THREE.MathUtils.clamp(_off.length() * Math.exp(-zoom * 1.6 * dt), controls.minDistance, controls.maxDistance));
+    camera.position.copy(t).add(_off);
+  }
+}
+
+// The view always aims at a spot inside a town or along a highway between
+// them, so nobody gets lost over empty grass.
+// Pulls a point back to the nearest of those; returns how far it had to move it.
+function pullIntoCity(v) {
+  let best = null, bestD = Infinity;
+  for (const [x0, x1, z0, z1] of areas) {
+    const dx = THREE.MathUtils.clamp(v.x, x0, x1) - v.x, dz = THREE.MathUtils.clamp(v.z, z0, z1) - v.z;
+    const d = dx * dx + dz * dz;
+    if (!d) return null;
+    if (d < bestD) { bestD = d; best = [dx, dz]; }
+  }
+  if (!best) return null;
+  v.x += best[0]; v.z += best[1];
+  return best;
+}
+
+// Runs every frame: keeps the view over the city and lowers the aim on zoom-in.
+function keepInCity() {
+  const t = controls.target;
+  if (flight || camera.position.y > 1500) return; // high over the map of the countries: free
+  const moved = pullIntoCity(t);
+  if (moved) { camera.position.x += moved[0]; camera.position.z += moved[1]; }
+  const k = THREE.MathUtils.smoothstep(camera.position.distanceTo(t), liftDist * 0.35, liftDist * 0.8);
+  t.y += (2 + (liftY - 2) * k - t.y) * 0.1;
+}
+
+// Zooms in on a spot of the ground (double click / double tap on empty ground).
+function zoomAt(point) {
+  _off.subVectors(camera.position, controls.target);
+  _off.setLength(Math.max(controls.minDistance + 14, _off.length() * 0.45));
+  const toT = new THREE.Vector3(point.x, 2, point.z);
+  pullIntoCity(toT);
+  flyView(toT.clone().add(_off), toT, 700);
+}
+
+function goHome() {
+  for (const o of document.querySelectorAll('#towns [data-town]')) o.classList.remove('on');
+  const view = homeView();
+  flyView(view.p, view.t, 1100);
+}
+
+addEventListener('keydown', (e) => {
+  const action = KEYS[e.code];
+  if (!action || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if ($('#reels').classList.contains('show') || $('#shop').classList.contains('show') || $('#support').classList.contains('show')) return;
+  e.preventDefault();
+  takeOver();
+  held.add(action);
+});
+addEventListener('keyup', (e) => held.delete(KEYS[e.code]));
+addEventListener('blur', () => held.clear());
+
+for (const btn of document.querySelectorAll('#nav [data-act]')) {
+  const action = btn.dataset.act;
+  const TAP = 260; // a quick tap still gives one clear step
+  let since = 0, timer = 0;
+  const press = () => { clearTimeout(timer); since = performance.now(); takeOver(); held.add(action); };
+  const release = () => { timer = setTimeout(() => held.delete(action), Math.max(0, TAP - (performance.now() - since))); };
+  btn.addEventListener('pointerdown', (e) => { btn.setPointerCapture(e.pointerId); press(); });
+  for (const type of ['pointerup', 'pointercancel']) btn.addEventListener(type, release);
+  // Pressed from the keyboard (Enter / Space): one step.
+  btn.addEventListener('click', (e) => { if (e.detail === 0) { press(); release(); } });
+}
+$('#navHome').addEventListener('click', goHome);
+
+function showCard(on, name, meta, isHouse, showReels) {
+  document.body.classList.toggle('has-card', on);
+  $('#card').classList.toggle('show', on);
+  if (!on) return;
+  $('#cardName').textContent = name;
+  $('#cardName').style.direction = isHouse ? 'ltr' : 'rtl';
+  $('#cardMeta').textContent = meta;
+  $('#cardProfile').hidden = !isHouse;
+  $('#cardShare').hidden = !isHouse;
+  $('#cardReels').hidden = !showReels;
+  $('#cardHeart').hidden = true; // only the portrait that takes hearts shows it
+  $('#cardTour').hidden = true;  // only Jeita Grotto's card shows it (selectLandmark)
+  $('#cardEnter').hidden = true; // only a house's card shows it (showHouseCard)
+  $('#cardFlag').hidden = true; // only houses with a country show one
+}
+
+// «قلب حب» for the martyr al-Sarout's portrait (buildSarout): the count shows
+// only on his card, after a tap on the picture. One heart per phone (a random
+// id kept on it), counted by the server (/api/hearts).
+let heartFor = null;
+function heartId() {
+  let id = '';
+  try { id = localStorage.getItem('heartId') || ''; } catch (err) { /* private window */ }
+  if (!/^[0-9a-f]{32}$/.test(id)) {
+    id = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    try { localStorage.setItem('heartId', id); } catch (err) { /* private window: one heart for this visit */ }
+  }
+  return id;
+}
+function showHearts(key, n, mine) {
+  if (heartFor !== key) return; // the card moved on meanwhile
+  $('#cardMeta').textContent = n == null ? '❤️ …' : `❤️ ${n.toLocaleString('en-US')} قلب حب`;
+  const b = $('#cardHeart');
+  b.hidden = false;
+  b.disabled = !!mine;
+  b.classList.toggle('given', !!mine);
+  b.textContent = mine ? '❤️ حطيت قلب حب' : '❤️ حط قلب حب';
+}
+async function openHearts(key) {
+  heartFor = key;
+  showHearts(key, null, false);
+  try {
+    const r = await (await fetch(`api/hearts?k=${key}&id=${heartId()}`, { cache: 'no-store' })).json();
+    showHearts(key, r.n, r.mine);
+  } catch (err) { $('#cardMeta').textContent = '❤️'; }
+}
+$('#cardHeart').addEventListener('click', async () => {
+  const key = heartFor, b = $('#cardHeart');
+  if (!key || b.disabled) return;
+  b.disabled = true;
+  try {
+    const res = await fetch('api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k: key, id: heartId() }) });
+    const r = await res.json();
+    if (!res.ok) { b.disabled = false; toast(r.error === 'slow' ? 'انحطّ كتير قلوب من هالشبكة 🙏 جرّب من نت تاني' : 'ما زبطت، جرّب كمان مرة'); return; }
+    showHearts(key, r.n, true);
+    b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    if (!r.already) toast('❤️ الله يرحمه… حطيت قلب حب للشهيد البطل عبد الباسط الساروت');
+  } catch (err) { b.disabled = false; toast('ما زبطت، جرّب كمان مرة'); }
+});
+
+// Fills the card for a house. Also called when the selected house's flag changes.
+function showHouseCard(rec) {
+  const village = rec && rec.town.code;
+  const country = rec && rec.country && rec.country !== village ? ' · ' + (countryNames[rec.country] || rec.country) : '';
+  const level = rec && (rec.villa ? 'فيلا 👑' : rec.level === MAX_LEVEL ? 'برج 🏢' : 'مستوى ' + rec.level);
+  const bd = rec && hzShop ? hzShop.badgeOf(rec.username) : '';
+  showCard(!!rec, rec && '@' + rec.username + (bd ? (bd === 'gold' ? ' 🟡✔' : ' 🔵✔') : ''), rec && `بيت رقم ${rec.i + 1} · ${village ? 'حارة ' + rec.town.name + ' · ' : ''}${level}${country}`, true, false);
+  $('#cardEnter').hidden = !rec;
+  if (rec) $('#cardEnter').textContent = social.me() === rec.username ? '🚪 دخول بيتي والترقية' : '🚪 دخول البيت';
+  if (rec && rec.country) {
+    $('#cardFlag').src = FLAG_CDN + rec.country.toLowerCase() + '.svg';
+    $('#cardFlag').hidden = false;
+  }
+}
+
+// Where to look at a house from: its usual place in front, unless a building
+// stands there or hides it (house 5's was inside the tower on the plaza). Then
+// the first clear place of the others: the other corner, higher, a side, the
+// back, from over the roofs.
+function houseView(rec) {
+  const top = rec.top, f = rec.rot === 0 ? 1 : -1;
+  const aim = new THREE.Vector3(rec.x, BASE_Y + top * 0.4, rec.z);
+  const places = [
+    [9, top + 15, 17 + top], [-9, top + 15, 17 + top], [0, top + 25, 12 + top],
+    [18 + top * 0.6, top + 19, 5], [-18 - top * 0.6, top + 19, 5],
+    [9, top + 15, -17 - top], [-9, top + 15, -17 - top],
+    [0, top + 36, 7], [4, top + 62, 12], [4, top + 95, 18],
+  ];
+
+  // what could be in the way: the houses round it as boxes, and the landmarks near it
+  const boxes = [];
+  for (const o of nearbyHouses(rec.x, rec.z, 2)) {
+    if (o === rec) continue;
+    const g = o.model.far.geo;
+    if (!g.boundingBox) g.computeBoundingBox();
+    setBase(o.x, BASE_Y, o.z, o.rot, MODEL_SCALE, MODEL_SCALE);
+    boxes.push(g.boundingBox.clone().applyMatrix4(_base));
+  }
+  const solids = [], ball = new THREE.Sphere();
+  scene.traverseVisible((o) => {
+    if (!o.isMesh || o.isInstancedMesh || o.material.transparent || o === marker) return;
+    const g = o.geometry;
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    // not the ground, the roads or the railway: as wide as a country, and below the camera
+    if (g.boundingSphere.radius > 300) return;
+    ball.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);
+    if (ball.center.distanceTo(aim) < ball.radius + 110) solids.push(o);
+  });
+
+  const ray = new THREE.Raycaster(), hit = new THREE.Vector3();
+  const blocked = (from, to, upTo) => {
+    const dir = to.clone().sub(from), d = dir.length() * upTo;
+    ray.set(from, dir.normalize());
+    ray.far = d;
+    for (const b of boxes) if (b.containsPoint(from) || (ray.ray.intersectBox(b, hit) && from.distanceTo(hit) < d)) return true;
+    return ray.intersectObjects(solids, false).length > 0;
+  };
+
+  const roof = new THREE.Vector3(rec.x, BASE_Y + top + 0.4, rec.z), middle = new THREE.Vector3(rec.x, BASE_Y + top * 0.75, rec.z + f * 1.5);
+  let best = null, least = Infinity;
+  for (const [dx, y, dz] of places) {
+    const p = new THREE.Vector3(rec.x + dx, BASE_Y + y, rec.z + f * dz);
+    const side = new THREE.Vector3().subVectors(aim, p).cross(UP).normalize();
+    const down = new THREE.Vector3().subVectors(aim, p).cross(side).normalize();
+    if (down.y > 0) down.negate();
+    const d = p.distanceTo(aim);
+    let bad = (blocked(p, roof, 0.97) ? 3 : 0) + (blocked(p, middle, 0.94) ? 3 : 0);
+    // and nothing close in front of the rest of the picture (its middle, its sides and under the house)
+    for (const [s, n] of [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.2], [0.12, 0.2], [-0.12, 0.2]]) {
+      if (bad >= least) break;
+      if (blocked(p, aim.clone().addScaledVector(side, s * d).addScaledVector(down, n * d), 0.5)) bad++;
+    }
+    if (bad < least) { least = bad; best = p; }
+    if (!bad) break;
+  }
+  return { p: best, t: aim };
+}
+
+function select(rec) {
+  selected = rec;
+  marker.visible = !!rec;
+  showHouseCard(rec);
+  if (rec) {
+    $('#cardProfile').href = 'https://www.instagram.com/' + encodeURIComponent(rec.username) + '/';
+    // From above the street, so the courtyard shows and the houses across the road stay below the view.
+    const view = houseView(rec);
+    flyView(view.p, view.t);
+  }
+  updateLabels();
+}
+
+function selectLandmark(entry) {
+  selected = null;
+  marker.visible = false;
+  const isCinema = entry.lm.type === 'cinema';
+  let meta = isCinema && !reels.length ? 'الريلز جاية قريباً 🎬' : 'معلم من معالم المدينة';
+  if (entry.lm.type === 'flags' && flagSquare) {
+    const list = flagSquare.list;
+    meta = list.length ? `🚩 ${list.length} دولة بحارتنا · الأولى ${list[0].name} بـ ${list[0].n} بيت` : '🚩 علّق واكتب بلدك ليرتفع علمها هون';
+  }
+  const town = entry.town;
+  if (town) {
+    meta = town.live
+      ? `${town.live.toLocaleString('en-US')} بيت · علّق واكتب «${town.name}» ليصير بيتك هون`
+      : `علّق واكتب «${town.name}» وبيتك بيكون أول بيت هون 🏠`;
+  }
+  heartFor = null;
+  if (entry.hearts) { // al-Sarout's portrait: its hearts, seen from the seats
+    showCard(true, entry.lm.name, '❤️ …', false, false);
+    openHearts(entry.hearts);
+    flyView(new THREE.Vector3(entry.x - 8, entry.y + 12, entry.z + 72), new THREE.Vector3(entry.x, entry.y + 2, entry.z), 1600);
+    updateLabels();
+    return;
+  }
+  if (entry.tour) meta = '🚤 خود جولة بالقارب جوا المغارة';
+  showCard(true, entry.lm.name, meta, false, isCinema && reels.length > 0);
+  $('#cardTour').hidden = !entry.tour;
+  if (entry.view) flyView(entry.view[0], entry.view[1], 1800);
+  else if (town) {
+    $('#cardFlag').src = FLAG_CDN + town.code.toLowerCase() + '.svg';
+    $('#cardFlag').hidden = false;
+    const [p, t] = town.view; // each landmark has its own best view (the one of its preview pictures)
+    flyView(new THREE.Vector3(entry.x + p[0], p[1], entry.z + p[2]), new THREE.Vector3(entry.x + t[0], t[1], entry.z + t[2]), 1800);
+  }
+  // The mosque is wide and low: look into its courtyard from above the street.
+  else if (entry.lm.type === 'center') flyView(new THREE.Vector3(17, 36, 47), new THREE.Vector3(0, 6, -1.5));
+  // The flags square: from above its gate, the screen at the back.
+  else if (entry.lm.type === 'flags') flyView(new THREE.Vector3(entry.x + 9, 17, entry.z + 24), new THREE.Vector3(entry.x, 3.2, entry.z - 2));
+  else flyTo(entry.x, entry.z, entry.height, 1);
+  updateLabels();
+}
+
+// ------------------------------------------------------------------ reels
+let reels = [];
+function openReels() {
+  const row = $('#reelsRow');
+  if (!row.children.length) {
+    for (const r of reels) {
+      const fig = document.createElement('figure');
+      const frame = document.createElement('iframe');
+      frame.src = `https://www.instagram.com/${r.kind === 'p' ? 'p' : 'reel'}/${encodeURIComponent(r.code)}/embed/`;
+      frame.title = r.title || 'ريل';
+      frame.loading = 'lazy';
+      frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      fig.append(frame);
+      if (r.title) {
+        const cap = document.createElement('figcaption');
+        cap.textContent = r.title;
+        fig.append(cap);
+      }
+      row.append(fig);
+    }
+  }
+  $('#reels').classList.add('show');
+}
+function closeReels() { $('#reels').classList.remove('show'); }
+
+const raycaster = new THREE.Raycaster();
+const pickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.6);
+const _hit = new THREE.Vector3(), _ndc = new THREE.Vector2();
+function pick(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  _ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(_ndc, camera);
+  const lmHit = raycaster.intersectObjects(landmarkGroups, true).find((h) => h.object.material !== haloMat);
+  if (lmHit) {
+    let o = lmHit.object;
+    while (o && !o.userData.entry) o = o.parent;
+    if (o) return { entry: o.userData.entry };
+  }
+  if (!raycaster.ray.intersectPlane(pickPlane, _hit)) return null;
+  let best = null, bestD = 3.4 * 3.4;
+  for (const rec of nearbyHouses(_hit.x, _hit.z, 1)) {
+    const d = (rec.x - _hit.x) ** 2 + (rec.z - _hit.z) ** 2;
+    if (d < bestD) { bestD = d; best = rec; }
+  }
+  return best && { rec: best };
+}
+
+let downAt = null, lastTap = null;
+canvas.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved > 6) return;
+  const again = lastTap && e.timeStamp - lastTap.at < 340 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 28;
+  lastTap = again ? null : { at: e.timeStamp, x: e.clientX, y: e.clientY };
+  const hit = pick(e.clientX, e.clientY);
+  if (camera.position.y > 1500) { // the map of the countries: a tap on one goes to its landmark
+    const land = (raycaster.ray.intersectPlane(pickPlane, _hit) && TOWNS.find((t) => inPolygon(t.land, _hit.x, _hit.z)))
+      || (hit && hit.entry && (hit.entry.town || (hit.entry.lm && townFor(hit.entry.lm.t))));
+    if (land) { lastTap = null; chooseTown(land); }
+    return;
+  }
+  if (again) { // second tap on empty ground: zoom in there
+    if (!hit && raycaster.ray.intersectPlane(pickPlane, _hit)) zoomAt(_hit);
+    return;
+  }
+  if (hit && hit.entry) selectLandmark(hit.entry);
+  else if (hit) select(hit.rec);
+});
+
+// ------------------------------------------------------------------ ui
+function toast(text, ms = 3200) {
+  const el = document.createElement('div');
+  el.className = 'panel toast';
+  el.textContent = text;
+  $('#toasts').append(el);
+  while ($('#toasts').children.length > 3) $('#toasts').firstChild.remove();
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, ms);
+}
+
+const cleanName = (v) => String(v || '').trim().replace(/^@+/, '').toLowerCase();
+
+function findHouse(name) {
+  const rec = byName.get(cleanName(name));
+  if (rec) select(rec);
+  else toast('ما لقينا بيتك لسا 🙈 تابع الحساب وعلّق على آخر منشور', 4200);
+  return rec;
+}
+
+// Suggestions: from the first letter, the houses whose name starts with what
+// was typed (then the ones that contain it), so nobody has to type it all.
+const suggestBox = $('#suggest');
+let suggestions = [], active = -1;
+function hideSuggest() {
+  suggestBox.hidden = true;
+  suggestions = [];
+  active = -1;
+  $('#q').setAttribute('aria-expanded', 'false');
+  $('#q').removeAttribute('aria-activedescendant');
+}
+function showSuggest() {
+  const q = cleanName($('#q').value);
+  if (!q) { hideSuggest(); return; }
+  const starts = [], within = [];
+  for (const [name, rec] of byName) {
+    if (name.startsWith(q)) starts.push(rec);
+    else if (within.length < 8 && name.includes(q)) within.push(rec);
+  }
+  starts.sort((a, b) => a.username.length - b.username.length || a.username.localeCompare(b.username));
+  suggestions = starts.concat(within).slice(0, 8);
+  active = -1;
+  suggestBox.replaceChildren();
+  if (!suggestions.length) suggestBox.append(el('li', 'none', 'ما في بيت بهالاسم لسا'));
+  suggestions.forEach((rec, n) => {
+    const li = el('li');
+    li.id = 'sug' + n;
+    li.setAttribute('role', 'option');
+    const name = el('span', 'who');
+    const at = rec.username.toLowerCase().indexOf(q);
+    name.append('@' + rec.username.slice(0, at), el('b', '', rec.username.slice(at, at + q.length)), rec.username.slice(at + q.length));
+    li.append(name);
+    if (rec.country) {
+      const img = el('img', 'flag');
+      img.src = FLAG_CDN + rec.country.toLowerCase() + '.svg';
+      img.alt = '';
+      li.append(img);
+    }
+    li.append(el('small', '', 'بيت ' + (rec.i + 1)));
+    li.addEventListener('pointerdown', (e) => { e.preventDefault(); pickSuggestion(n); });
+    suggestBox.append(li);
+  });
+  suggestBox.hidden = false;
+  $('#q').setAttribute('aria-expanded', 'true');
+}
+function markActive(n) {
+  active = n;
+  [...suggestBox.children].forEach((li, i) => li.classList.toggle('on', i === n));
+  if (n >= 0) $('#q').setAttribute('aria-activedescendant', 'sug' + n);
+}
+function pickSuggestion(n) {
+  const rec = suggestions[n];
+  if (!rec) return;
+  $('#q').value = rec.username;
+  hideSuggest();
+  select(rec);
+  $('#q').blur();
+}
+$('#q').addEventListener('input', showSuggest);
+$('#q').addEventListener('focus', showSuggest);
+$('#q').addEventListener('blur', () => setTimeout(hideSuggest, 120));
+$('#q').addEventListener('keydown', (e) => {
+  if (suggestBox.hidden || !suggestions.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); markActive((active + 1) % suggestions.length); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); markActive((active - 1 + suggestions.length) % suggestions.length); }
+  else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pickSuggestion(active); }
+  else if (e.key === 'Escape') hideSuggest();
+});
+
+$('#search').addEventListener('submit', (e) => {
+  e.preventDefault();
+  hideSuggest();
+  if (cleanName($('#q').value)) { findHouse($('#q').value); $('#q').blur(); }
+});
+$('#cardClose').addEventListener('click', () => select(null));
+$('#cardReels').addEventListener('click', openReels);
+$('#cardTour').addEventListener('click', startTour);
+$('#tourEnd').addEventListener('click', stopTour);
+$('#reelsBtn').addEventListener('click', openReels);
+$('#reelsClose').addEventListener('click', closeReels);
+$('#reels').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeReels(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeReels(); closeShop(); closeSupport(); } });
+$('#cardShare').addEventListener('click', async () => {
+  if (!selected) return;
+  const link = location.origin + location.pathname + '?u=' + encodeURIComponent(selected.username);
+  try { await navigator.clipboard.writeText(link); toast('انتسخ الرابط ✅'); }
+  catch (err) { toast(link, 6000); }
+});
+
+function setCount() {
+  $('#count').textContent = byName.size.toLocaleString('en-US');
+  for (const b of document.querySelectorAll('#towns [data-town]')) b.querySelector('b').textContent = (townFor(b.dataset.town).live || 0).toLocaleString('en-US');
+}
+
+// «سباق الأسبوع» (server.js raceInfo): the houses built this week, per country,
+// from zero. Not shown on the page (the user wanted the screen kept clear):
+// the reels read it (window.city.race()) and show the results.
+let race = null; // { week, start, end, from (this week's first house), last: { town, houses } | null }
+function raceCounts() {
+  const n = { '': 0, JO: 0, PS: 0, LB: 0, IQ: 0, MA: 0, EG: 0, YE: 0, SA: 0 };
+  if (race) for (let i = race.from; i < houses.length; i++) { const r = houses[i]; if (r && !r.moved) n[r.town.code] = (n[r.town.code] || 0) + 1; }
+  return n;
+}
+// The Android app's race tab (public/app.js) reads the race and the coins from here.
+window.haretnaCity = {
+  // "see my house": the city is already built, so only fly there
+  show: (name) => {
+    const r = ready && byName.get(String(name || '').toLowerCase());
+    if (!r) return false;
+    showHow(false);
+    select(r);
+    return true;
+  },
+  // the phone's Back: closes what is open on top, one thing at a time. False: nothing was
+  back: () => {
+    if ($('#shop').classList.contains('show')) closeShop();
+    else if ($('#reels').classList.contains('show')) closeReels();
+    else if (document.querySelector('header').classList.contains('finding')) closeFind();
+    else if ($('#card').classList.contains('show')) select(null);
+    else if (document.body.classList.contains('how-open')) showHow(false);
+    else return false;
+    return true;
+  },
+  race: () => race && { ...race, counts: raceCounts() },
+  coins: () => coins,
+  house: (name) => { const r = byName.get(String(name || '').toLowerCase()); return r && { i: r.i, username: r.username, town: r.town.code, villa: !!r.villa }; },
+};
+// The towns bar (or a tap on a country's land seen from high up): fly to the
+// country's main landmark, the mosque in Syria, near enough to see it and the
+// houses round it, not right up close (the user, 2026-11-21).
+function townView(t) {
+  const e = t.group ? t.group.userData.entry : { x: 0, z: 0 };
+  const D = (t.code === 'SA' ? 380 : t.code ? 240 : 320) * Math.max(1, Math.sqrt(0.9 / camera.aspect)); // a phone held upright sees less across: a little further; the Kingdom Centre is tall
+  const side = t.code ? 1 : -1; // Syria from the south-west, so Bosra is not in front of the mosque
+  return { p: new THREE.Vector3(e.x + side * D * 0.32, D * 0.6, e.z + D * 0.74), t: new THREE.Vector3(e.x, t.code === 'SA' ? 62 : 6, e.z) };
+}
+function chooseTown(t) {
+  takeOver();
+  for (const o of document.querySelectorAll('#towns [data-town]')) o.classList.toggle('on', townFor(o.dataset.town) === t);
+  if (t.group) selectLandmark(t.group.userData.entry); // its card (how many houses, how to get one)
+  else select(null);
+  if (walker.on) { const e = t.group ? t.group.userData.entry : { x: 0, z: 0 }; walkTo(e.x + 10, e.z + 36); return; } // my character goes there
+  const v = townView(t);
+  flyView(v.p, v.t, 2200);
+}
+for (const b of document.querySelectorAll('#towns [data-town]')) b.addEventListener('click', () => chooseTown(townFor(b.dataset.town)));
+
+// The phone's buttons (index.html): 🔍 opens the search under the top row, and
+// "🏠 بدك بيت؟" the box that says how to get a house (open on the first visit).
+$('#findBtn').addEventListener('click', () => {
+  const open = document.querySelector('header').classList.toggle('finding');
+  $('#findBtn').setAttribute('aria-expanded', String(open));
+  if (open) $('#q').focus();
+});
+function closeFind() {
+  document.querySelector('header').classList.remove('finding');
+  $('#findBtn').setAttribute('aria-expanded', 'false');
+  hideSuggest();
+  $('#q').blur();
+}
+$('#search').addEventListener('submit', () => {
+  if (matchMedia('(max-width: 640px)').matches) closeFind();
+});
+function showHow(on) {
+  document.body.classList.toggle('how-open', on);
+  $('#howBtn').setAttribute('aria-expanded', String(on));
+  if (!on) try { localStorage.setItem('howSeen', '1'); } catch (err) { /* private window */ }
+}
+$('#howBtn').addEventListener('click', () => showHow(true));
+$('#howClose').addEventListener('click', () => showHow(false));
+$('#howCoins').addEventListener('click', () => { showHow(false); $('#coinsBtn').click(); });
+{ let seen = false; try { seen = localStorage.getItem('howSeen') === '1'; } catch (err) { /* private window */ } showHow(!seen); }
+
+// ------------------------------------------------------------------ city balance
+// Every new house adds coins to the city's balance; the balance buys landmarks
+// (from the control panel). Visitors see the balance and what it can buy.
+let coins = 0, perHouse = 0, shop = [];
+const SHOP_ICONS = { cn_tower: '🗼', eiffel: '🗼', burj: '🏙️', clock: '🕰️', pyramid: '🔺', ferris: '🎡', cinema: '🎬', park: '🌳' };
+const el = (tag, cls, text) => {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
+};
+
+function setCoins(n) {
+  coins = n;
+  $('#coins').textContent = n.toLocaleString('en-US');
+  if ($('#shop').classList.contains('show')) renderShop();
+}
+
+function renderShop() {
+  $('#shopCoins').textContent = coins.toLocaleString('en-US');
+  $('#shopRule').textContent = `كل بيت جديد بيزيد رصيد المدينة ${perHouse} 🪙، وبالرصيد منشتري معالم جديدة لحارتنا.`;
+  const list = $('#shopList');
+  list.replaceChildren();
+  for (const item of shop) {
+    const li = el('li');
+    const body = el('div', 'grow');
+    const missing = Math.max(0, item.price - coins);
+    body.append(el('b', '', item.name));
+    body.append(el('small', missing ? '' : 'ready', missing ? `ناقص ${Math.ceil(missing / Math.max(1, perHouse)).toLocaleString('en-US')} بيت` : 'الرصيد بيكفي ✅'));
+    const bar = el('div', 'bar');
+    const fill = el('i');
+    fill.style.width = Math.min(100, (coins / item.price) * 100) + '%';
+    bar.append(fill);
+    body.append(bar);
+    li.append(el('span', 'icon', SHOP_ICONS[item.type] || '🏗️'), body, el('span', 'price', item.price.toLocaleString('en-US') + ' 🪙'));
+    list.append(li);
+  }
+}
+function openShop() { $('#shop').classList.add('show'); renderShop(); }
+function closeShop() { $('#shop').classList.remove('show'); }
+$('#coinsBtn').addEventListener('click', openShop);
+$('#shopClose').addEventListener('click', closeShop);
+$('#shop').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeShop(); });
+
+// ------------------------------------------------------------------ دعم المدينة: رعاة وإعلانات
+// كل ما هنا يأتي من cfg.support / cfg.sponsors / cfg.ads (تحرّرها من لوحة الأدمن).
+// الروابط: http(s) فقط. كل النصوص تُكتب بـ textContent (لا HTML).
+const safeUrl = (u) => { try { if (!String(u || '').trim()) return ''; const x = new URL(String(u).trim(), location.href); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (err) { return ''; } };
+const igLink = (h) => { const u = String(h || '').trim().replace(/^@+/, ''); return /^[A-Za-z0-9._]{1,30}$/.test(u) ? 'https://ig.me/m/' + u : safeUrl(u); };
+let support = {}, sponsors = [], ads = [], adIdx = 0, adTimer = 0, adClosed = false;
+
+function renderSupport() {
+  $('#supportIntro').textContent = support.intro || 'ادعم المدينة واحصل على برج أو معلم باسمك، أو أعلن عن مشروعك فيها.';
+  const list = $('#supportPrices');
+  list.replaceChildren();
+  for (const p of support.prices || []) {
+    const li = el('li'), body = el('div', 'grow');
+    body.append(el('b', '', String(p.name || '')));
+    if (p.desc) body.append(el('small', '', String(p.desc)));
+    li.append(el('span', 'icon', '💎'), body, el('span', 'price', String(p.price || '')));
+    list.append(li);
+  }
+  const link = igLink(support.contact), a = $('#supportContact');
+  a.hidden = !link;
+  if (link) a.href = link;
+  const sl = $('#sponsorList');
+  sl.replaceChildren();
+  $('#sponsorsHead').hidden = !sponsors.length;
+  for (const sp of sponsors) {
+    const li = el('li'), body = el('div', 'grow');
+    body.append(el('b', '', '@' + String(sp.name || '')));
+    body.append(el('small', '', String(sp.item || '') + (sp.t && countryNames[sp.t] ? ' — ' + countryNames[sp.t] : '')));
+    li.append(el('span', 'icon', '🌟'), body);
+    sl.append(li);
+  }
+}
+function showAd() {
+  const live = ads.filter((a) => a && a.active !== false && (a.title || a.img));
+  const bar = $('#adBar');
+  if (!live.length || adClosed) { bar.hidden = true; return; }
+  const ad = live[adIdx++ % live.length], link = safeUrl(ad.link), img = ad.img ? safeUrl(ad.img) : '';
+  $('#adText').textContent = 'إعلان · ' + String(ad.title || '');
+  const im = $('#adImg');
+  im.hidden = !img;
+  if (img) im.src = img;
+  const a = $('#adLink');
+  if (link) a.href = link; else a.removeAttribute('href');
+  bar.hidden = false;
+}
+function setupSupport(cfg) {
+  support = cfg.support && typeof cfg.support === 'object' ? cfg.support : {};
+  sponsors = Array.isArray(cfg.sponsors) ? cfg.sponsors : [];
+  ads = Array.isArray(cfg.ads) ? cfg.ads : [];
+  $('#supportBtn').hidden = !(support.contact || (support.prices && support.prices.length) || sponsors.length);
+  clearInterval(adTimer);
+  showAd();
+  if (ads.length > 1) adTimer = setInterval(showAd, 7000);
+}
+function openSupport() { renderSupport(); $('#support').classList.add('show'); }
+function closeSupport() { $('#support').classList.remove('show'); }
+$('#supportBtn').addEventListener('click', openSupport);
+$('#supportClose').addEventListener('click', closeSupport);
+$('#support').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeSupport(); });
+$('#adClose').addEventListener('click', () => { adClosed = true; $('#adBar').hidden = true; });
+
+// ------------------------------------------------------------------ data
+let loading = false;
+let rev = null; // changes when landmarks, reels or levels change -> reload
+let fv = null;  // how many flag changes this page has seen
+async function sync(initial, early) {
+  if (loading) return;
+  loading = true;
+  try {
+    const data = await (early || getHousesData());
+    initial = initial || !houses.length; // also when the first try failed
+    if (rev !== null && data.rev !== rev) { location.reload(); return; }
+    const fresh = (data.houses || []).filter((r) => Array.isArray(r) && r[0] > houses.length); // a static host sends every house each time: take only the new ones
+    const animateFrom = !initial ? 0 : fresh.length > 2000 ? fresh.length : fresh.length - 260; // a big city opens on the map: none is near enough to be seen popping up
+    const step = initial ? Math.min(14, 1500 / Math.max(1, Math.min(fresh.length, 260))) : 250;
+    for (const [index, code] of data.flags || []) { // flags raised or changed on houses already here
+      if (houses[index]) setCountry(houses[index], code);
+    }
+    if (typeof data.fv === 'number') fv = data.fv;
+    fresh.forEach(([, username, level, country, town, moved, villa], j) => {
+      const rec = addHouse(username, level, j >= animateFrom ? (j - Math.max(0, animateFrom)) * step : null, country, town, villa === 1);
+      if (rec && moved) rec.moved = 1; // built again elsewhere (the Yemeni houses moved from Syria): not a new house
+      if (rec && !moved && !initial && j < 3) toast(`🏠 انبنى بيت جديد لـ @${username}${rec.town.code ? ' بحارة ' + rec.town.name : ''}${perHouse ? ` · +${perHouse} 🪙` : ''}`);
+    });
+    if (typeof data.coins === 'number' && data.coins !== coins) setCoins(data.coins);
+    if (fresh.length) { placeNextSign(); setCount(); updateLabels(); }
+  } catch (err) {
+    console.error(err);
+    if (initial) toast('تعذّر تحميل المدينة، جرّب تحديث الصفحة');
+  } finally {
+    loading = false;
+  }
+}
+
+// The first view (and the 🕌 button's): every country from high up, on its own
+// land with its name, so a visitor picks theirs (the user, 2026-11-21). Fitted
+// to the screen, looking a little north.
+function homeView() {
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const t of TOWNS) for (const [x, z] of t.land) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+  // in the space under the top bars (the flags), not behind them
+  const top = Math.min(innerHeight * 0.45, ($('#towns') ? $('#towns').getBoundingClientRect().bottom : 0) + 8), f = 1 - top / innerHeight;
+  const h = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), tilt = 0.3;
+  const d = Math.max((z1 - z0) / 2 / (h * f), (x1 - x0) / 2 / (h * camera.aspect)) * 1.12;
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2 - (top / innerHeight) * h * d;
+  return { t: new THREE.Vector3(cx, 0, cz), p: new THREE.Vector3(cx, d * Math.cos(tilt), cz + d * Math.sin(tilt)) };
+}
+function frameCity() {
+  const view = homeView();
+  controls.target.copy(view.t);
+  camera.position.copy(view.p);
+  setLift(view.p, view.t);
+  controls.autoRotate = false; // the map keeps north up
+}
+
+// ------------------------------------------------------------------ day and night
+// The city follows the visitor's clock at first (night from 7 pm to 6 am);
+// the moon / sun button switches it.
+const stars = (() => {
+  const pos = [];
+  for (let i = 0; i < 700; i++) {
+    const a = Math.random() * Math.PI * 2, y = 0.08 + Math.random() * 0.92, r = Math.sqrt(1 - y * y);
+    pos.push(Math.cos(a) * r * 1800, y * 1800, Math.sin(a) * r * 1800);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const p = new THREE.Points(g, new THREE.PointsMaterial({ color: '#ffffff', size: 2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }));
+  p.visible = false;
+  scene.add(p);
+  return p;
+})();
+const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,250,232,1)', 'rgba(255,250,232,0)'), transparent: true, opacity: 0, fog: false, depthWrite: false }));
+moon.scale.set(90, 90, 1);
+moon.visible = false;
+scene.add(moon);
+const MOON_DIR = new THREE.Vector3(-0.55, 0.42, -0.72).normalize();
+
+const DAY = { grass: new THREE.Color('#97d480'), lawn: new THREE.Color('#a9de90'), sky: new THREE.Color('#bfe6ff'), hemiSky: new THREE.Color('#ffffff'), hemiGround: new THREE.Color('#c3d2ae'), sun: new THREE.Color('#fff3dd'), lamp: new THREE.Color('#d9dde3') };
+const NIGHT = { grass: new THREE.Color('#4f7a4a'), lawn: new THREE.Color('#5d8a55'), sky: new THREE.Color('#0c1532'), hemiSky: new THREE.Color('#8ea2d8'), hemiGround: new THREE.Color('#2a3350'), sun: new THREE.Color('#a8bdff'), lamp: new THREE.Color('#ffd27a') };
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+let nightFrom = 0, nightTo = 0, nightT0 = 0, nightShown = -1;
+function setNight(on, instant = false) {
+  nightFrom = instant ? (on ? 1 : 0) : nightShown < 0 ? 0 : nightShown;
+  nightTo = on ? 1 : 0;
+  nightT0 = performance.now();
+  if (instant) applyNight(nightTo);
+  const btn = $('#modeBtn');
+  btn.textContent = on ? '☀️' : '🌙';
+  btn.setAttribute('aria-pressed', String(on));
+  btn.title = on ? 'نهار' : 'ليل';
+}
+function applyNight(k) {
+  nightShown = k;
+  nightU.value = k;
+  scene.background.lerpColors(DAY.sky, NIGHT.sky, k);
+  scene.fog.color.copy(scene.background);
+  hemi.color.lerpColors(DAY.hemiSky, NIGHT.hemiSky, k);
+  hemi.groundColor.lerpColors(DAY.hemiGround, NIGHT.hemiGround, k);
+  hemi.intensity = 1.55 + (0.45 - 1.55) * k;
+  ground.material.color.lerpColors(LAND_DAY, LAND_NIGHT, k);
+  pools.lawn.mat.color.lerpColors(DAY.lawn, NIGHT.lawn, k);
+  sun.color.lerpColors(DAY.sun, NIGHT.sun, k);
+  sun.intensity = 1.75 + (0.42 - 1.75) * k;
+  lampMat.color.lerpColors(DAY.lamp, NIGHT.lamp, k);
+  lampLightMat.opacity = 0.62 * k;
+  beamMat.opacity = 0.42 * k;
+  ringMat.opacity = k;
+  haloMat.opacity = 0.3 * k;
+  for (const light of floodlights) light.intensity = 11 * k;
+  for (const [m, s] of townFx) m.opacity = s * k;
+  for (const m of flagSquareMats) m.emissiveIntensity = 0.5 * k;
+  stars.material.opacity = k;
+  moon.material.opacity = k;
+  stars.visible = moon.visible = k > 0.01;
+  const hex = '#' + scene.background.getHexString();
+  if (themeMeta) themeMeta.content = hex;
+  document.body.style.background = hex;
+}
+function updateNight(now) {
+  let k = nightTo;
+  if (nightFrom !== nightTo) {
+    const t = Math.min(1, Math.max(0, (now - nightT0) / 1200));
+    k = nightFrom + (nightTo - nightFrom) * t * t * (3 - 2 * t);
+    if (t >= 1) nightFrom = nightTo;
+  }
+  if (k !== nightShown) applyNight(k);
+  if (stars.visible) {
+    stars.position.copy(camera.position);
+    moon.position.copy(camera.position).addScaledVector(MOON_DIR, 1700);
+  }
+}
+$('#modeBtn').addEventListener('click', () => {
+  const on = nightTo !== 1;
+  setNight(on);
+  try { localStorage.setItem('mode', on ? 'night' : 'day'); } catch (err) {}
+});
+{
+  let saved = null;
+  try { saved = localStorage.getItem('mode'); } catch (err) {}
+  const hour = new Date().getHours();
+  setNight(saved ? saved === 'night' : hour >= 19 || hour < 6, true);
+}
+
+// ------------------------------------------------------------------ loop
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+let lastLabels = 0, lastTick = 0;
+let paused = false; // true while a reel is being filmed: the camera is driven from outside
+let ready = false;  // nothing is drawn while the city is being built: half a city costs the phone as much as a whole one
+let drawn = false;
+function tick(now) {
+  requestAnimationFrame(tick);
+  if (paused || !ready) return;
+  const dt = Math.min(0.1, (now - lastTick) / 1000);
+  lastTick = now;
+
+  for (let n = growing.length - 1; n >= 0; n--) {
+    const g = growing[n];
+    const t = (now - g.t0) / 850;
+    if (t < 0) continue;
+    if (t >= 1) { writeHouse(g.rec, 1); growing.splice(n, 1); }
+    else writeHouse(g.rec, easeOutBack(t));
+  }
+
+  if (tour) tourStep(now); // the boat tour drives the camera; the hands and keys wait
+  else {
+    if (wj && wj.on) wj.update(dt); // الطائرة الحربية: الكاميرا تتبعها
+    else if (drive && drive.on) drive.update(dt, Date.now()); // my car: the camera chases it, the road and the houses stop it
+    else if (walker.on) walkerStep(dt); // my character: the camera follows it, free of the city's limits
+    else {
+      if (flight) {
+        const t = Math.min(1, (now - flight.t0) / flight.dur);
+        const k = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        camera.position.lerpVectors(flight.fromP, flight.toP, k);
+        controls.target.lerpVectors(flight.fromT, flight.toT, k);
+        if (t >= 1) flight = null;
+      }
+      steer(dt);
+      keepInCity();
+    }
+    if (!(wj && wj.on)) controls.update();
+  }
+  if (wj) wj.frame(dt, now / 1000);
+  draw(now, false);
+  if (!drawn) { drawn = true; $('#loading').hidden = true; }
+}
+
+// Everything that follows the camera, then the picture itself.
+function draw(now, everyFrame) {
+  // The haze only softens the horizon: it starts beyond what the camera looks
+  // at, so zooming out never hides the houses.
+  const camD = camera.position.distanceTo(controls.target), high = THREE.MathUtils.smoothstep(camera.position.y, 1500, 6000); // the map of the countries: no haze over it
+  scene.fog.near = Math.max(260, camD * (1.05 + high * 1.5));
+  scene.fog.far = Math.max(950, camD * (2.4 + high * 2.6) + 500);
+  sun.target.position.copy(controls.target);
+  sun.position.copy(controls.target).add(_p.set(90, 150, 60));
+
+  if (selected) {
+    marker.position.set(selected.x, tagY(selected) + 2.5 + Math.sin(now / 280) * 0.35, selected.z);
+    marker.rotation.y = now / 600;
+  }
+  padMat.opacity = 0.35 + 0.25 * Math.sin(now / 350);
+  if (boundsDirty && now - highwayAt > 1500) { highwayAt = now; buildHighways(); }
+  for (const spin of spinners) spin(now);
+
+  updateNight(now);
+  if (traffic) traffic.update(controls.target.x, controls.target.z, Date.now());
+  if (hzShop) hzShop.updateDecor();
+  updateCars(now);
+  if (flagSquareDirty && (everyFrame || now - flagSquareAt > 700)) { flagSquareAt = now; updateFlagSquare(); }
+  else if (flagSquare && Date.now() - flagSquare.podium.at > 30000) updatePodium(); // the time left on the podium's sign
+  if (everyFrame || now - lastLabels > 220) { lastLabels = now; updateLabels(); updateDetail(); }
+  for (const p of poolList) p.flush();
+  renderer.render(scene, camera);
+}
+
+// ------------------------------------------------------------------ start
+// Open the page with ?debug to read drawing numbers from the console (window.city).
+// The same handle lets marketing/reels/film.js drive the camera and film the city.
+if (new URLSearchParams(location.search).has('debug')) {
+  window.city = {
+    renderer, camera, controls, models, nearSet, houses, byName, draw,
+    pause: (on) => { paused = on; },
+    settle: () => { for (const g of growing) writeHouse(g.rec, 1); growing.length = 0; }, // finish the pop-up of new houses at once
+    mark: (name) => { selected = byName.get(String(name || '').toLowerCase()) || null; marker.visible = !!selected; updateLabels(); }, // highlight a house, as the search does
+    nextPlot: () => nextSign.position, // where the next house will be built
+    setNight, cars, // switch day / night (true / false, instant), the cars on the streets
+    flagSquare: () => flagSquare && { x: flagSquare.x, z: flagSquare.z, list: flagSquare.list, flown: flagSquare.spots.filter((s) => s.group.visible).map((s) => s.code) },
+    flagSpot: (i) => flagSquare && flagSquare.spots[i], // { x, z, group: [pole, flag, plaque] } inside the square
+    night: (k) => { nightFrom = nightTo = k; applyNight(k); }, // any level between day (0) and night (1)
+    updateFlagSquare,
+    grow: (rec, t) => writeHouse(rec, t <= 0 ? 0 : t >= 1 ? 1 : easeOutBack(t)), // replay the pop-up of a house: t = 0 (empty plot) .. 1 (built)
+    landmarks: () => landmarkGroups, // the landmark groups (userData.entry: { lm, height, x, z }), e.g. to film one being built
+    scene, houseMat, towns: TOWNS, // the towns: { code, name, count (plots taken), live (houses), sign, group, ... }
+    plot: (code, j) => plotOf(townFor(code), j), // where the j-th plot of a town is ({ x, z })
+    trains, // the railway's trains: { mesh, set(seconds) } puts one where it is at that time
+    plane: () => bannerPlane, // the weekly draw's banner plane: { group, set(seconds) }, or null
+    airports: () => airportList, // the airports: { name, x, z, rot, group, set(seconds), landing, departing }
+    titles: () => titles, // the weekly draw's winners shown in the city
+    race: () => race && { ...race, counts: raceCounts() }, // this week's race: { week, start, end, from, last, counts: { town: houses } }
+    tourAt: (k) => grottoes[0] && tourView(grottoes[0], k), // Jeita's boat tour: the camera at k (0..1) of it; returns the bar's words
+  };
+}
+
+// ------------------------------------------------------------------ شخصيتي
+// صاحب البيت يمشي بشخصيته في كل المدينة (بلا حواجز)، والزوار يرون الشخصيات المتصلة.
+// المواضع تُرسل كل ~0.7 ثانية أثناء الحركة (social.js)، وتُقرأ كل 3 ثوانٍ وتُنعَّم بالحركة.
+const walker = { on: false, name: '', x: 0, z: 0, yaw: 0, jx: 0, jy: 0, speedI: 0, put: 0, was: false, ph: 0, avatar: null };
+const SPEEDS = [['عادية', 16], ['سريعة', 45], ['صاروخ 🚀', 130]];
+const others = new Map(); // الاسم -> { g, legs, arms, tx, tz, tr, t, seen, ph }
+function makeAvatar(name) {
+  const g = new THREE.Group(), body = new THREE.Group(), hh = hash(name.toLowerCase());
+  const shirt = `hsl(${hh % 360} 62% 52%)`, pants = '#2f3b52', skin = ['#f2cfae', '#dba97b', '#b97f55'][hh % 3], hair = ['#2b1d14', '#5a3a22', '#1b1b1f', '#8a6a3b'][(hh >> 3) % 4];
+  const limb = (x, y, color, w, h, d, cy) => { const l = new THREE.Group(); l.position.set(x, y, 0); solid(l, box, color, 0, cy, 0, w, h, d); body.add(l); return l; };
+  const legs = [limb(-0.22, 0.9, pants, 0.32, 0.9, 0.32, -0.45), limb(0.22, 0.9, pants, 0.32, 0.9, 0.32, -0.45)];
+  const arms = [limb(-0.56, 1.85, shirt, 0.24, 0.8, 0.26, -0.4), limb(0.56, 1.85, shirt, 0.24, 0.8, 0.26, -0.4)];
+  solid(body, box, shirt, 0, 1.4, 0, 0.8, 0.95, 0.44);
+  solid(body, new THREE.SphereGeometry(0.34, 14, 10), skin, 0, 2.2, 0);
+  solid(body, new THREE.SphereGeometry(0.36, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), hair, 0, 2.26, -0.02);
+  solid(body, box, '#1d2433', -0.12, 2.22, 0.31, 0.07, 0.07, 0.04);
+  solid(body, box, '#1d2433', 0.12, 2.22, 0.31, 0.07, 0.07, 0.04);
+  body.scale.setScalar(1.5);
+  g.add(body);
+  const lab = textSprite(null, 384, 96, 7);
+  pill(lab.userData.ctx, 384, 96, '@' + name, '#ffffff', '#1d2433', 46);
+  lab.userData.tex.needsUpdate = true;
+  lab.position.y = 4.7;
+  g.add(lab);
+  g.traverse((m) => { if (m.isMesh) m.raycast = () => {}; });
+  g.position.y = BASE_Y + 0.02;
+  return { g, legs, arms };
+}
+function poseAvatar(a, moving, ph) {
+  const k = moving ? Math.sin(ph) * 0.75 : 0;
+  a.legs[0].rotation.x = k; a.legs[1].rotation.x = -k;
+  a.arms[0].rotation.x = -k * 0.8; a.arms[1].rotation.x = k * 0.8;
+}
+const turnTo = (from, to, k) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * k;
+async function pollPlayers() {
+  if (document.hidden || !ready) return;
+  const list = await social.getPlayers(), now = Date.now(), mine = social.me();
+  for (const p of list) {
+    if (!p.name || typeof p.x !== 'number' || typeof p.z !== 'number') continue;
+    if (walker.on && p.name === mine) continue; // mine is drawn from my own steps
+    let o = others.get(p.name);
+    if (!o) {
+      const a = makeAvatar(p.name);
+      a.g.position.set(p.x, a.g.position.y, p.z);
+      scene.add(a.g);
+      o = { ...a, tx: p.x, tz: p.z, tr: p.r || 0, t: -1, seen: now, ph: 0 };
+      others.set(p.name, o);
+    }
+    if (p.t !== o.t) { o.t = p.t; o.seen = now; }
+    o.tx = p.x; o.tz = p.z; o.tr = p.r || 0;
+  }
+  for (const [n, o] of others) {
+    if (now - o.seen > 45000 || (walker.on && n === mine)) { scene.remove(o.g); others.delete(n); }
+  }
+}
+setInterval(() => pollPlayers().catch(() => {}), 3000);
+spinners.push(() => {
+  for (const o of others.values()) {
+    const dx = o.tx - o.g.position.x, dz = o.tz - o.g.position.z, d = Math.hypot(dx, dz);
+    if (d > 500) { o.g.position.x = o.tx; o.g.position.z = o.tz; }
+    else { o.g.position.x += dx * 0.12; o.g.position.z += dz * 0.12; }
+    o.g.rotation.y = turnTo(o.g.rotation.y, o.tr, 0.15);
+    const moving = d > 0.4;
+    if (moving) o.ph += 0.35;
+    poseAvatar(o, moving, o.ph);
+  }
+});
+function placeWalker() {
+  const a = walker.avatar; if (!a) return;
+  a.g.position.set(walker.x, BASE_Y + 0.02, walker.z);
+  a.g.rotation.y = walker.yaw;
+}
+function walkerStep(dt) {
+  const kx = on('right') - on('left'), ky = on('fwd') - on('back');
+  let jx = walker.jx + kx, jy = walker.jy + ky;
+  const m = Math.hypot(jx, jy);
+  if (m > 1) { jx /= m; jy /= m; }
+  _fwd.set(controls.target.x - camera.position.x, 0, controls.target.z - camera.position.z);
+  if (_fwd.lengthSq() < 1e-6) _fwd.set(0, 0, -1);
+  _fwd.normalize();
+  _side.set(-_fwd.z, 0, _fwd.x);
+  const moving = m > 0.05;
+  if (moving) {
+    const mx = _fwd.x * jy + _side.x * jx, mz = _fwd.z * jy + _side.z * jx, v = SPEEDS[walker.speedI][1] * dt;
+    walker.x = THREE.MathUtils.clamp(walker.x + mx * v, -20000, 20000);
+    walker.z = THREE.MathUtils.clamp(walker.z + mz * v, -20000, 20000);
+    walker.yaw = turnTo(walker.yaw, Math.atan2(mx, mz), Math.min(1, dt * 12));
+    walker.ph += dt * (9 + 4 * walker.speedI);
+  }
+  poseAvatar(walker.avatar, moving, walker.ph);
+  placeWalker();
+  const dx = walker.x - controls.target.x, dz = walker.z - controls.target.z; // the camera follows, keeping its own angle and distance
+  controls.target.set(walker.x, 1.8, walker.z);
+  camera.position.x += dx; camera.position.z += dz;
+  const t = performance.now();
+  if (moving ? t - walker.put > 700 : (walker.was || t - walker.put > 8000)) { walker.put = t; social.putPlayer(walker.x, walker.z, walker.yaw); }
+  walker.was = moving;
+}
+function walkTo(x, z) { walker.x = x; walker.z = z; walker.put = 0; walker.was = true; } // the camera follows on the next frame
+async function toggleWalk() {
+  if (drive && drive.on) drive.stop();
+  if (walker.on) return stopWalk();
+  const name = await social.needName();
+  if (!name) return;
+  const rec = byName.get(name);
+  if (!rec) { toast('ما لقينا بيتك بالمدينة، تأكد من الاسم'); return; }
+  takeOver();
+  walker.on = true; walker.name = name; walker.jx = walker.jy = 0;
+  walker.x = rec.x + Math.sin(rec.rot) * 6; walker.z = rec.z + Math.cos(rec.rot) * 6; walker.yaw = rec.rot;
+  if (!walker.avatar) { walker.avatar = makeAvatar(name); scene.add(walker.avatar.g); }
+  walker.avatar.g.visible = true;
+  placeWalker();
+  const own = others.get(name);
+  if (own) { scene.remove(own.g); others.delete(name); }
+  document.body.classList.add('hz-walk');
+  $('#hzWalk').classList.add('on');
+  controls.enablePan = false;
+  controls.zoomToCursor = false; // the zoom stays on my character
+  controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+  controls.touches.ONE = THREE.TOUCH.ROTATE;
+  controls.target.set(walker.x, 1.8, walker.z);
+  camera.position.set(walker.x - Math.sin(walker.yaw) * 17, 10, walker.z - Math.cos(walker.yaw) * 17);
+  walker.put = 0; walker.was = true;
+  toast('🚶 شخصيتك في المدينة: حرّك العصا · ⚡ للسرعة · اضغط علم دولة لتنتقل إليها', 6000);
+}
+function stopWalk() {
+  walker.on = false;
+  if (walker.avatar) walker.avatar.g.visible = false;
+  document.body.classList.remove('hz-walk');
+  $('#hzWalk').classList.remove('on');
+  controls.enablePan = true;
+  controls.zoomToCursor = true;
+  controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+  controls.touches.ONE = THREE.TOUCH.PAN;
+  social.dropPlayer();
+}
+addEventListener('pagehide', () => { if (walker.on) social.dropPlayer(); });
+// ------------------------------------------------------------------ تسوق · قيادة · إشارات مرور
+let hzShop = null, drive = null, traffic = null, wj = null;
+{
+  const keyInput = () => ({ x: Math.max(-1, Math.min(1, walker.jx + on('right') - on('left'))), y: Math.max(-1, Math.min(1, walker.jy + on('fwd') - on('back'))) });
+  const carInstances = new Map(); // لون → { pool }
+  const makePlayerCar = (color) => {
+    let c = carInstances.get(color);
+    if (!c) { const pool = new Pool(bake((g) => carModel(g, 0, 0, color)), houseMat); poolList.push(pool); c = { pool, idx: pool.add(), beam: beamPool.add() }; carInstances.set(color, c); }
+    return {
+      place(x, z, yaw) { setBase(x, CAR_Y, z, yaw, CAR_SCALE, CAR_SCALE); c.pool.mesh.setMatrixAt(c.idx, _base); c.pool.dirty = true; part(beamPool, c.beam, 0, 0.06, 1.25, 2.6, 1, 7.5); },
+      hide() { setBase(0, -200, 0, 0, 0.001, 0.001); c.pool.mesh.setMatrixAt(c.idx, _base); c.pool.dirty = true; part(beamPool, c.beam, 0, -200, 0, 0.001, 0.001, 0.001); },
+    };
+  };
+  traffic = createTraffic({ THREE, scene, BW, BD, ROAD, paved: (bx, bz) => pavedTiles.has(bx + ',' + bz) });
+  drive = createDrive({
+    THREE, camera, controls, toast, BW, BD, SLAB_W, SLAB_D, blockAt, traffic, cars,
+    input: keyInput, makeCar: makePlayerCar,
+    extra: () => [...RESERVED.filter((r) => Array.isArray(r) && r.length === 4), { x: SWORD.x, z: SWORD.z, r: SWORD.r }],
+    onStop: () => { $('#hzCar').classList.remove('on'); },
+  });
+  const tag = (name, badge, lux) => { // لوحة اسم ذهبية/زرقاء فوق البيوت الفخمة
+    const sp = textSprite(null, 512, 120, lux ? 9 : 7);
+    pill(sp.userData.ctx, 512, 120, '@' + name + (badge ? ' ✔' : ' 👑'), badge === 'blue' ? '#1d9bf0' : '#f5b800', badge === 'blue' ? '#ffffff' : '#3a2a00', 52);
+    sp.userData.tex.needsUpdate = true; sp.renderOrder = 3;
+    return sp;
+  };
+  hzShop = createShop({
+    THREE, OrbitControls, scene, camera, toast, byName, houses, BASE_Y, MAX_LEVEL, makeTag: tag,
+    houseInfo: (rec) => (rec.villa ? 'فيلا 👑' : rec.level === MAX_LEVEL ? 'برج 🏢' : 'مستوى ' + rec.level) + ' · بيت رقم ' + (rec.i + 1),
+  });
+  window.haretnaShop = hzShop;
+  try { // ✈️ المطار الحربي: يُحمَّل بشكل اختياري، فإن فشل تبقى المدينة تعمل
+    const A0 = AIRPORTS[0];
+    import('./airbase/warjet.js').then((m) => {
+      wj = m.createWarJet({
+        scene, camera, controls, canvas, toast, houses, towns: TOWNS, cars, landmarks: () => landmarkGroups, byName, writeHouse, takeOver, social, getConfig,
+        openShop: () => hzShop.open('car'), at: { x: A0.x, z: A0.z - AIR_SIZE.d / 2 - 130 },
+        stopAll: () => { if (drive && drive.on) drive.stop(); if (walker.on) stopWalk(); },
+      });
+    }).catch((err) => console.warn('airbase:', err));
+  } catch (err) { console.warn('airbase:', err); }
+  const jetBtn = document.createElement('button');
+  jetBtn.id = 'hzJet'; jetBtn.textContent = '✈️'; jetBtn.title = 'طائرتي الحربية'; jetBtn.setAttribute('aria-label', 'طائرتي الحربية');
+  jetBtn.onclick = () => { if (wj) wj.toggle().catch((err) => { console.error(err); toast('تعذّر تشغيل الطائرة'); }); else toast('✈️ ملفات الطائرة غير مرفوعة (مجلد airbase)'); };
+  const open = () => hzShop.open();
+  $('#drawBtn').addEventListener('click', open);
+  $('#cardEnter').addEventListener('click', () => { if (selected) hzShop.openHouse(selected.username); });
+  // زر 🚗 في الشريط الجانبي
+  const dock = document.querySelector('.hz-dock');
+  const carBtn = document.createElement('button');
+  carBtn.id = 'hzCar'; carBtn.textContent = '🚗'; carBtn.title = 'سيارتي'; carBtn.setAttribute('aria-label', 'سيارتي');
+  const shopBtn = document.createElement('button');
+  shopBtn.id = 'hzShop'; shopBtn.textContent = '🛍️'; shopBtn.title = 'تسوق'; shopBtn.setAttribute('aria-label', 'تسوق');
+  shopBtn.onclick = open;
+  setTimeout(() => { const d = document.querySelector('.hz-dock'); if (d) { d.insertBefore(carBtn, d.querySelector('#hzSpeed')); d.insertBefore(shopBtn, carBtn); d.insertBefore(jetBtn, shopBtn); } }, 0); // the dock is made by social.setup just below
+  void dock;
+  carBtn.onclick = async () => {
+    if (drive.on) return drive.stop();
+    const name = await social.needName(); if (!name) return;
+    const rec = byName.get(name); if (!rec) { toast('ما لقينا بيتك بالمدينة'); return; }
+    const free = new URLSearchParams(location.search).has('freecar');
+    const color = free ? '#d64545' : hzShop.carOf(name);
+    if (!color) { toast('🚗 ما عندك سيارة بعد، اشترِ واحدة من المتجر'); hzShop.open('car'); return; }
+    if (walker.on) stopWalk();
+    takeOver();
+    const bz = Math.round(rec.z / BD);
+    drive.start(rec.x, (bz + 0.5) * BD + 1.5, Math.PI / 2, color); // on the road in front of the block, heading east
+    carBtn.classList.add('on');
+  };
+}
+social.setup({
+  houseExists: (n) => byName.has(n),
+  onWalk: () => toggleWalk().catch((err) => { console.error(err); toast('تعذّر تشغيل الشخصية'); }),
+  onSpeed: () => { walker.speedI = (walker.speedI + 1) % SPEEDS.length; toast('⚡ السرعة: ' + SPEEDS[walker.speedI][0], 1800); },
+  onMove: (x, y) => { walker.jx = x; walker.jy = y; },
+});
+
+const breathe = () => new Promise((r) => setTimeout(r, 0)); // lets the phone paint and take taps between two big jobs
+async function start() {
+  // both asked for at once (index.html has started them already), not one after the other
+  const prime = (p) => { p.catch(() => {}); return p; };
+  const firstConfig = prime(getConfig()), firstHouses = prime(getHousesData());
+  resize();
+  await breathe();
+  buildPlaza();
+  setAccount('...');
+  frameCity();
+  requestAnimationFrame(tick);
+
+  // Text is painted onto canvases, so wait (briefly) for the Arabic font.
+  await Promise.race([
+    document.fonts.load('800 40px Tajawal', 'بيت').catch(() => {}),
+    new Promise((r) => setTimeout(r, 1500)),
+  ]);
+
+  try {
+    const cfg = await firstConfig;
+    rev = cfg.rev;
+    LM_OFF = !!cfg.lmOff;
+    $('#account').textContent = '@' + cfg.account;
+    $('#account').href = 'https://www.instagram.com/hartna.city?dmpr=NWNueWcya2c0OHZx';
+    setAccount(cfg.account);
+    reels = cfg.reels || [];
+    NAMES = cfg.names || {};
+    countryNames = cfg.countries || {};
+    race = cfg.race || null;
+    if (cfg.titles) titles = { police: {}, ...cfg.titles };
+    perHouse = cfg.perHouse || 0;
+    shop = cfg.shop || [];
+    setupSupport(cfg);
+    setCoins(cfg.coins || 0);
+    $('#reelsBtn').hidden = !reels.length;
+    // Each town's territory rule starts after the block it had reached (server.js ensureFrozen).
+    for (const t of TOWNS) t.frozen = cfg.frozen ? (cfg.frozen[t.code] ?? (t.code ? 11 : 8)) : Infinity;
+    for (const t of TOWNS) t.spreadK = cfg.spread && cfg.spread[t.code] != null ? cfg.spread[t.code] : null;
+    if (!landNames.length) paintLands();
+    await breathe();
+    // Landmarks first: they decide which blocks the houses skip.
+    for (const lm of cfg.landmarks || []) townFor(lm.t).landmarkBlocks.set(lm.block, lm);
+    for (const lm of cfg.landmarks || []) buildLandmark(lm);
+    // Empty lots around the tower from day one, waiting for their owners.
+    for (let b = 1; b <= 8; b++) ensureBlock(SYRIA, b);
+    await breathe();
+    // The villages of the neighbouring countries, each round its landmark.
+    for (const t of TOWNS) if (t.code) buildTown(t);
+    await breathe();
+    buildSword(); // at the entrance of Damascus, on the road to Amman
+    buildRum();   // Jordan's desert, on the road to Egypt
+    buildAirports(); // Damascus's and Queen Alia's
+    buildBosra(); // the theatre of Bosra, in Damascus next to the mosque
+    buildAbdali(); // Abdali Boulevard and the Rotana tower, in Jordan's village
+    await breathe();
+    const station = (cfg.landmarks || []).find((lm) => lm.type === 'station');
+    if (station && !LM_OFF) buildRailway(station);
+    if (titles.plane) buildPlane(titles.plane); // the weekly draw's banner plane, over Damascus
+    buildFleet(cfg.planes ?? DEFAULT_PLANES); // a civil plane for each country (admin: cfg.planes)
+  } catch (err) {
+    console.error(err);
+    toast('تعذّر تحميل المدينة، جرّب تحديث الصفحة');
+    $('#loading').hidden = true;
+    ready = true;
+    return;
+  }
+
+  await breathe();
+  await sync(true, firstHouses);
+  setCount();
+  await breathe();
+  buildHighways();
+  await breathe();
+  scatterGround();
+  placeNextSign();
+  frameCity();
+  ready = true;
+
+  const wanted = new URLSearchParams(location.search).get('u');
+  if (wanted) { $('#q').value = cleanName(wanted); findHouse(wanted); }
+  if (new URLSearchParams(location.search).get('tour') === 'jeita' && grottoes.length) startTour(); // a link straight into the boat
+
+  // First visit: say how to move around.
+  let hinted = false;
+  try { hinted = !!localStorage.getItem('navHint'); localStorage.setItem('navHint', '1'); } catch (err) {}
+  if (!wanted) toast('🗺️ اختار دولتك من الأعلام أو اضغط عليها بالخريطة لتروح على حارتها', 6000);
+  if (!hinted) {
+    toast(matchMedia('(pointer: coarse)').matches
+      ? '☝️ اسحب بإصبع لتتجول بالمدينة · بإصبعين للتقريب والدوران'
+      : '🖱️ اسحب لتتجول بالمدينة · العجلة للتقريب · الزر اليمين للدوران', 7000);
+  }
+
+  setInterval(() => { if (!document.hidden) sync(false); }, 8000);
+}
+start();
