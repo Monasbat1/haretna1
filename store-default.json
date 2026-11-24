@@ -1,0 +1,196 @@
+{
+ "whatsapp": "",
+ "hold": 15,
+ "sham": {
+  "account": "",
+  "name": "",
+  "qr": ""
+ },
+ "crypto": [
+  {
+   "coin": "USDT (TRC20)",
+   "addr": ""
+  },
+  {
+   "coin": "USDT (BEP20)",
+   "addr": ""
+  }
+ ],
+ "items": [
+  {
+   "id": "villa",
+   "cat": "house",
+   "kind": "villa",
+   "emoji": "🏰",
+   "name": "فيلا فخمة 👑",
+   "price": 30,
+   "desc": "بيتك يتحوّل لفيلا بمسبح وتاج، مع لوحة اسمك الذهبية فوقه."
+  },
+  {
+   "id": "tower",
+   "cat": "house",
+   "kind": "tower",
+   "emoji": "🏢",
+   "name": "برج سكني",
+   "price": 50,
+   "desc": "ارفع بيتك لبرج شاهق (المستوى الأخير)."
+  },
+  {
+   "id": "landmark",
+   "cat": "house",
+   "kind": "landmark",
+   "emoji": "🗽",
+   "name": "معلم على بيتك",
+   "price": 20,
+   "desc": "نصب ذهبي على سطح بيتك مع يوزرك فوقه، يُرى من بعيد."
+  },
+  {
+   "id": "upgrade",
+   "cat": "house",
+   "kind": "upgrade",
+   "emoji": "⬆️",
+   "name": "ترقية مستوى",
+   "price": 8,
+   "desc": "يرفع بيتك مستوى واحداً (حتى البرج). تكرّر الشراء لتصعد أكثر."
+  },
+  {
+   "id": "badge_blue",
+   "cat": "badge",
+   "kind": "badge_blue",
+   "emoji": "🔵",
+   "name": "توثيق أزرق ✔",
+   "price": 10,
+   "desc": "علامة زرقاء بجانب يوزرك على بيتك وفي الدردشة."
+  },
+  {
+   "id": "badge_gold",
+   "cat": "badge",
+   "kind": "badge_gold",
+   "emoji": "🟡",
+   "name": "توثيق أصفر ✔",
+   "price": 25,
+   "desc": "علامة صفراء ذهبية للمميزين، ولوحة اسمك تصير ذهبية."
+  },
+  {
+   "id": "sofa",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "🛋️",
+   "name": "كنبة",
+   "price": 5,
+   "desc": "كنبة مريحة لصالون بيتك."
+  },
+  {
+   "id": "bed",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "🛏️",
+   "name": "سرير",
+   "price": 8,
+   "desc": "سرير مزدوج بخشب فاخر."
+  },
+  {
+   "id": "tv",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "📺",
+   "name": "تلفزيون",
+   "price": 6,
+   "desc": "شاشة كبيرة على الجدار."
+  },
+  {
+   "id": "table",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "🍽️",
+   "name": "طاولة طعام",
+   "price": 4,
+   "desc": "طاولة دائرية للعائلة."
+  },
+  {
+   "id": "fridge",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "🧊",
+   "name": "براد",
+   "price": 7,
+   "desc": "براد كبير للمطبخ."
+  },
+  {
+   "id": "wardrobe",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "🚪",
+   "name": "خزانة ثياب",
+   "price": 6,
+   "desc": "خزانة خشبية ضخمة."
+  },
+  {
+   "id": "lamp",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "💡",
+   "name": "أباجورة",
+   "price": 2,
+   "desc": "إضاءة دافئة للغرفة."
+  },
+  {
+   "id": "rug",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "🟥",
+   "name": "سجادة",
+   "price": 3,
+   "desc": "سجادة حمراء للصالون."
+  },
+  {
+   "id": "plant",
+   "cat": "furn",
+   "kind": "furn",
+   "emoji": "🪴",
+   "name": "نبتة",
+   "price": 2,
+   "desc": "نبتة خضراء تنعش المكان."
+  },
+  {
+   "id": "car_red",
+   "cat": "car",
+   "kind": "car",
+   "color": "#d64545",
+   "emoji": "🚗",
+   "name": "سيارة حمراء",
+   "price": 20,
+   "desc": "سيارتك الخاصة: قُدها بالمدينة بعداد وغيارات وزمور."
+  },
+  {
+   "id": "car_blue",
+   "cat": "car",
+   "kind": "car",
+   "color": "#2f6fb5",
+   "emoji": "🚙",
+   "name": "سيارة زرقاء",
+   "price": 20,
+   "desc": "سيارة عائلية زرقاء."
+  },
+  {
+   "id": "car_taxi",
+   "cat": "car",
+   "kind": "car",
+   "color": "#f4c542",
+   "emoji": "🚕",
+   "name": "سيارة صفراء",
+   "price": 22,
+   "desc": "سيارة صفراء مميزة."
+  },
+  {
+   "id": "car_black",
+   "cat": "car",
+   "kind": "car",
+   "color": "#2b2f38",
+   "emoji": "🏎️",
+   "name": "سيارة فاخرة سوداء",
+   "price": 35,
+   "desc": "سيارة سوداء فاخرة."
+  }
+ ]
+}

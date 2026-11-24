@@ -69,7 +69,7 @@ function start() {
     <button type="button" data-tab="city" class="on"><i>🏙️</i>المدينة</button>
     <button type="button" data-tab="home"><i>🏠</i>بيتي</button>
     <button type="button" data-tab="race"><i>🏁</i>السباق</button>
-    <button type="button" data-tab="draw"><i>🎁</i>القرعة</button>`;
+    <button type="button" data-tab="draw"><i>🛍️</i>تسوق</button>`;
   document.body.appendChild(tabs);
 
   const sheet = document.createElement('section');
@@ -80,7 +80,7 @@ function start() {
   let current = onCity ? 'city' : 'draw';
   if (!onCity) { document.body.style.paddingBottom = 'var(--tabs)'; for (const b of tabs.querySelectorAll('button')) b.classList.toggle('on', b.dataset.tab === 'draw'); }
   function show(tab) {
-    if (tab === 'draw') { if (onCity) location.href = '/draw.html'; return; }
+    if (tab === 'draw') { if (onCity) { if (window.haretnaShop) window.haretnaShop.open(); } else location.href = '/?shop=1'; return; }
     if (!onCity) { location.href = '/' + (tab === 'city' ? '' : '?tab=' + tab); return; }
     current = tab;
     for (const b of tabs.querySelectorAll('button')) b.classList.toggle('on', b.dataset.tab === tab);

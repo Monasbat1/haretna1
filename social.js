@@ -246,3 +246,8 @@ export function setup({ houseExists, onWalk, onSpeed, onMove }) {
   for (const t of ['pointerup', 'pointercancel']) joy.addEventListener(t, (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ''; onMove(0, 0); });
   return { walkBtn: walk };
 }
+
+// ---- للمتجر: نفس الحساب المجهول ونفس الاتصال بالقاعدة
+export const myUid = () => A.uid;
+export async function api(method, path, body, q = '', authed = true) { if (authed) await token(); return db(method, path, body, q, authed); }
+export const TS = SV;

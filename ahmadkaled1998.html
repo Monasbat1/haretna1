@@ -3,35 +3,59 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://ahmad-662ee-default-rtdb.firebaseio.com; base-uri 'none'; form-action 'none'">
 <title>لوحة إدارة حارتنا</title>
 <style>
-:root{--bg:#eef6ff;--p:#1f6feb;--t:#16202c;--b:#d0dae6}
-*{box-sizing:border-box}body{margin:0;font-family:Tajawal,system-ui,sans-serif;background:var(--bg);color:var(--t);padding:10px}
-.card{background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px #0001}
-button{background:var(--p);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:inherit;margin:2px;cursor:pointer}
-button.g{background:#e6edf5;color:var(--t)}button.r{background:#d73a49;padding:4px 9px}button.on{outline:3px solid #0a3d91}
+:root{--bg:#eef3f9;--p:#1f6feb;--pd:#0a3d91;--t:#16202c;--b:#d0dae6;--mu:#667085;--ok:#1f8a4c;--bad:#d73a49}
+*{box-sizing:border-box}body{margin:0;font-family:Tajawal,system-ui,sans-serif;background:var(--bg);color:var(--t);padding:0 0 84px}
+.card{background:#fff;border-radius:14px;padding:14px;margin:0 10px 10px;box-shadow:0 2px 8px #0001}
+button{background:var(--p);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:inherit;margin:2px;cursor:pointer;white-space:nowrap}
+button.g{background:#e6edf5;color:var(--t)}button.r{background:var(--bad);padding:4px 9px}button.ok{background:var(--ok)}button.on{outline:3px solid var(--pd)}
+button:disabled{opacity:.5}
 input,textarea,select{width:100%;padding:8px;border:1px solid var(--b);border-radius:8px;font:inherit;margin:3px 0}
-.tabs{display:flex;gap:4px;overflow:auto}.w{overflow:auto;max-height:60vh}.row{display:flex;gap:6px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}
+.w{overflow:auto;max-height:60vh}.row{display:flex;gap:6px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}
 table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid var(--b);padding:3px;white-space:nowrap;background:#fff}
 td input,td select{min-width:70px;margin:0;padding:4px}td input[type=checkbox]{min-width:0;width:auto}
-textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}small{color:#667}
+textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}small{color:var(--mu)}
 .im{display:inline-block;width:170px;margin:4px;text-align:center;font-size:12px;vertical-align:top}.im img{width:100%;height:90px;object-fit:cover;border-radius:8px;background:#ddd}
-#msg{position:fixed;bottom:10px;left:10px;right:10px;background:#16202c;color:#fff;padding:10px;border-radius:10px;display:none;z-index:9}
+#msg{position:fixed;bottom:76px;left:10px;right:10px;background:#16202c;color:#fff;padding:10px;border-radius:10px;display:none;z-index:30}
+/* الهيكل: شريط علوي + تنقل مجمّع + زر نشر ثابت */
+.top{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#0a3d91,#1f6feb);color:#fff;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;box-shadow:0 3px 12px #0003}
+.top b{font-size:17px}.top small{color:#d6e4ff}.top .sp{flex:1}
+.top button{background:#ffffff26;margin:0}.top button:hover{background:#ffffff40}
+.nav{display:flex;gap:10px;overflow-x:auto;padding:0 10px 10px;scrollbar-width:thin}
+.grp{flex:none;background:#fff;border-radius:14px;padding:6px 8px 8px;box-shadow:0 2px 8px #0001}
+.grp>span{display:block;font-size:11px;font-weight:700;color:var(--mu);padding:0 4px 3px}
+.grp>div{display:flex;gap:4px}
+.grp button{background:#eef3f9;color:var(--t);margin:0;padding:8px 12px;position:relative}
+.grp button.on{background:var(--p);color:#fff;outline:0}
+.grp button i{position:absolute;top:-5px;inset-inline-start:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;font-style:normal;display:grid;place-items:center;padding:0 4px}
+.bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0}.bar .sp{flex:1}
+.bar.sec{padding-top:8px;border-top:1px dashed var(--b)}
+.fab{position:fixed;bottom:12px;inset-inline:10px;z-index:25;display:flex;gap:8px;justify-content:center;pointer-events:none}
+.fab button{pointer-events:auto;box-shadow:0 6px 18px #0004;padding:13px 22px;font-size:16px;font-weight:700;border-radius:14px}
+#pubFab{background:var(--ok)}#pubFab.dirty{background:#e8590c;animation:pl 1.6s infinite}@keyframes pl{50%{box-shadow:0 0 0 7px #e8590c33}}
+.ord{border:1px solid var(--b);border-radius:12px;padding:10px;margin:8px 0;background:#fff}
+.ord.p{border-inline-start:5px solid #e8a400}.ord.a{border-inline-start:5px solid var(--ok)}.ord.r{border-inline-start:5px solid var(--bad)}
+.ord .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ord .h b{font-size:15px}.pill{padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;background:#e6edf5}
+.pill.p{background:#fff3cd;color:#8a6d00}.pill.a{background:#d8f5e3;color:var(--ok)}.pill.r{background:#ffd9d9;color:#b02a37}
+.qr{width:150px;height:150px;object-fit:contain;border:1px solid var(--b);border-radius:12px;background:#fff}
+.tx{direction:ltr;font-family:monospace;background:#f3f6fa;border-radius:8px;padding:4px 8px;display:inline-block;word-break:break-all}
 </style></head><body>
 <div id="login" class="card"><b>🔐 دخول الأدمن</b>
 <input id="em" type="email" autocomplete="username" placeholder="البريد الإلكتروني" dir="ltr">
 <input id="pw" type="password" autocomplete="current-password" placeholder="كلمة المرور" dir="ltr">
 <button onclick="doLogin()">دخول</button><div id="lerr" style="color:#d73a49;margin-top:6px"></div></div>
 <div id="app" style="display:none">
-<div class="card"><b>🏠 لوحة إدارة حارتنا</b> <small id="sum"></small> <small id="who"></small> <button class="g" onclick="logout()">خروج</button>
-<div class="tabs" id="tabs"></div></div>
+<div class="top"><b>🏠 لوحة إدارة حارتنا</b> <small id="sum"></small><span class="sp"></span><small id="who"></small>
+<button onclick="load()" title="إعادة تحميل البيانات">↻ تحديث</button><button onclick="logout()">خروج</button></div>
+<div class="nav" id="tabs"></div>
 
 <div id="t_u" class="card">
 <div class="row"><input id="q" placeholder="🔍 اسم الحساب أو الرقم" oninput="S.f=this.value;S.page=0;renderU()">
 <select id="fl" onchange="S.lv=this.value;S.page=0;renderU()"><option value="">كل المستويات</option><option value="0">محذوف</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4 برج</option><option value="v">فيلا 👑</option></select>
 <input id="fc" placeholder="الدولة (SY, JO..)" oninput="S.co=this.value.toUpperCase();S.page=0;renderU()"></div>
 <div id="hInfo"></div>
-<button class="g" onclick="S.page=Math.max(0,S.page-1);renderU()">◀</button><button class="g" onclick="S.page++;renderU()">▶</button>
-<button onclick="addUser()">＋ مستخدم جديد</button><button onclick="addMany()">＋ عدة مستخدمين</button>
-<div class="row" style="margin-top:6px"><button class="g" onclick="selAll()">☑ تحديد كل النتائج</button><button class="g" onclick="selNone()">☐ إلغاء التحديد</button>
+<div class="bar"><button class="g" onclick="S.page=Math.max(0,S.page-1);renderU()">◀ السابق</button><button class="g" onclick="S.page++;renderU()">التالي ▶</button><span class="sp"></span>
+<button onclick="addUser()">＋ مستخدم</button><button onclick="addMany()">＋ عدة مستخدمين</button></div>
+<div class="bar sec"><button class="g" onclick="selAll()">☑ تحديد الكل</button><button class="g" onclick="selNone()">☐ إلغاء</button><span class="sp"></span>
 <button class="r" id="delSel" onclick="delSel()" style="padding:9px 14px">🗑 حذف المحدد (0)</button>
 <button class="r" onclick="delAll()" style="padding:9px 14px;background:#8b0000">🗑️ حذف جميع البيوت</button></div>
 <details><summary>⚙️ إجراء جماعي على نتائج البحث</summary>
@@ -76,11 +100,34 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 
 <div id="t_i" class="card" style="display:none"><b>الصور</b> <small>هنا تعديل الأسماء المكتوبة تحت الصور فقط. لاستبدال ملف الصورة نفسه ارفعه على GitHub داخل مجلد img/</small><div id="imgs"></div></div>
 
-<div id="t_s" class="card" style="display:none"><b>النشر</b> <small>ينشر التغييرات على قاعدة البيانات، وتظهر للزوار خلال ثوانٍ</small>
+<div id="t_o" class="card" style="display:none"><b>🛒 الطلبات</b> <small>طلبات المتجر: تحقّق من وصول الدفعة ثم اضغط قبول لتفعيل الطلب فوراً.</small>
+<div class="bar"><select id="ofl" onchange="S.of=this.value;renderO()" style="max-width:160px"><option value="p">قيد المراجعة</option><option value="a">المقبولة</option><option value="r">المرفوضة</option><option value="">الكل</option></select>
+<input id="oq" placeholder="🔍 يوزر أو رمز معاملة" oninput="S.oq=this.value;renderO()"><span class="sp"></span><button class="g" onclick="loadO()">↻ تحديث الطلبات</button></div>
+<div id="oList"></div></div>
+
+<div id="t_st" class="card" style="display:none"><b>🏪 إعدادات المتجر والدفع</b> <small>تُحفظ فوراً بزر «حفظ المتجر» ولا تحتاج 🚀 نشر.</small>
+<div class="bar sec"><b>💬 الدعم (واتساب)</b></div>
+<div class="row"><label>رقم واتساب مع رمز الدولة (بدون +)<input id="stWa" dir="ltr" placeholder="963xxxxxxxxx"></label><label>مهلة قبول الطلب (دقائق)<input id="stHold" type="number" min="1"></label></div>
+<div class="bar sec"><b>💳 شام كاش</b></div>
+<div class="row"><label>رقم/معرّف الحساب<input id="stSh" dir="ltr"></label><label>اسم صاحب الحساب<input id="stShN"></label></div>
+<div class="row" style="align-items:center"><img id="stQr" class="qr" alt="" style="display:none"><div><input type="file" id="stQrF" accept="image/*"><small>صورة حساب شام كاش/QR تظهر للمشتري (تُصغَّر تلقائياً).</small><button class="g" onclick="stQrDel()">حذف الصورة</button></div></div>
+<div class="bar sec"><b>₿ العملات الرقمية</b></div>
+<div class="w" style="max-height:25vh"><table id="stCr"></table></div><button class="g" onclick="stCrAdd()">＋ محفظة</button>
+<div class="bar sec"><b>📦 المنتجات</b></div>
+<div class="w" style="max-height:45vh"><table id="stIt"></table></div>
+<div class="bar"><button class="g" onclick="stItAdd()">＋ منتج</button><button class="g" onclick="stReset()">↺ المنتجات الافتراضية</button><span class="sp"></span><button class="ok" onclick="stSave()">💾 حفظ المتجر</button></div></div>
+
+<div id="t_vf" class="card" style="display:none"><b>✔️ التوثيق (العلامة الزرقاء والصفراء)</b> <small>يظهر فوراً للجميع بدون نشر.</small>
+<div class="row"><input id="vfU" dir="ltr" placeholder="اسم الحساب (username)"><select id="vfT"><option value="blue">🔵 أزرق</option><option value="gold">🟡 أصفر</option></select></div>
+<div class="bar"><button class="ok" onclick="vfSet()">✔ توثيق</button><button class="g" onclick="vfDel()">إزالة التوثيق</button><span class="sp"></span><button class="g" onclick="loadVf()">↻ تحديث</button></div>
+<div class="w"><table id="vfT2"></table></div></div>
+
+<div id="t_s" class="card" style="display:none"><b>🚀 النشر</b> <small>ينشر التغييرات على قاعدة البيانات، وتظهر للزوار خلال ثوانٍ</small>
 <button onclick="pub()">🚀 نشر كل التغييرات</button><hr>
 <button class="g" onclick="restoreBackup()">↩️ استرجاع النسخة السابقة (قبل آخر نشر)</button><hr>
 <button class="g" onclick="dl('config')">تنزيل config</button><button class="g" onclick="dl('houses')">تنزيل houses</button></div>
 </div>
+<div class="fab"><button id="pubFab" onclick="pub()">🚀 نشر التغييرات</button></div>
 <div id="msg"></div>
 <script src="admin-fb.js"></script>
 <script>
@@ -91,9 +138,10 @@ function setName(n,v){S.cfg.names=S.cfg.names||{};v=v.trim();if(v)S.cfg.names[n]
 const IMGS=['club-faisaly.png','club-wehdat.png','royal-crown-prince.jpg','royal-king.jpg','sarout.jpg','saudi-crown-prince.jpg','saudi-king.jpg','syria-president.jpg'];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',5000)}
-const TABS={u:'👥 المستخدمون',c:'💬 من التعليقات',r:'💎 الرعاة والإعلانات',m:'🏛️ المعالم والطائرات',p:'🪙 النقاط والإعدادات',i:'🖼️ الصور',s:'🚀 النشر'};
-$('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-t="${k}" onclick="tab('${k}')">${v}</button>`).join('')+'<button class="g" onclick="load()">↻</button>';
-function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='r')spFill();if(n=='m')fillM();if(n=='i')renderI()}
+const GROUPS=[['👥 المدينة',{u:'👥 المستخدمون',c:'💬 من التعليقات'}],['🛍️ المتجر',{o:'🛒 الطلبات',st:'🏪 المتجر والدفع',vf:'✔️ التوثيق'}],['🏛️ المحتوى',{m:'🏛️ المعالم والطائرات',i:'🖼️ الصور'}],['💎 المال',{r:'💎 الرعاة والإعلانات',p:'🪙 النقاط والإعدادات'}],['⚙️ النظام',{s:'🚀 النشر'}]];
+const TABS=Object.assign({},...GROUPS.map(g=>g[1]));
+$('#tabs').innerHTML=GROUPS.map(([t,o])=>`<div class="grp"><span>${t}</span><div>${Object.entries(o).map(([k,v])=>`<button data-t="${k}" onclick="tab('${k}')">${v}${k=='o'?'<i id="oBadge" style="display:none">0</i>':''}</button>`).join('')}</div></div>`).join('');
+function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='r')spFill();if(n=='m')fillM();if(n=='i')renderI();if(n=='o')loadO();if(n=='st')loadSt();if(n=='vf')loadVf();window.scrollTo({top:0})}
 async function load(){try{
  let cs=null,hs=null;
  try{[cs,hs]=await Promise.all([FBA.get('city/config'),FBA.get('city/houses')])}catch(e){if(e.message==='DENIED')throw Error('ليس لديك صلاحية')}
@@ -248,8 +296,72 @@ async function modDo(w){try{if(!confirm('متأكد؟'))return;
  else if(w==='pl')await FBA.patch('',{players:null});
  else{const n=$('#mdN').value.trim().replace(/^@+/,'').toLowerCase().replace(/\./g,',');if(!n)return msg('اكتب اسم الحساب');await FBA.patch('claims',{[n]:null})}
  msg('تم ✓')}catch(e){msg('فشل: '+(e.message==='DENIED'?'القواعد لا تسمح (انشر قواعد الدردشة أولاً)':e.message))}}
+setInterval(()=>{const b=$('#pubFab');if(b){b.classList.toggle('dirty',!!S.dirty);b.textContent=S.dirty?'🚀 نشر التغييرات (غير منشورة)':'🚀 نشر التغييرات'}},600);
+
+// ================= المتجر: الطلبات + الإعدادات + التوثيق =================
+const unk=k=>String(k).replace(/,/g,'.'),ky=n=>String(n).trim().replace(/^@+/,'').toLowerCase().replace(/\./g,',');
+const fmtT=t=>t?new Date(t).toLocaleString('ar'):'';
+S.of='p';S.oq='';S.ord=[];S.store=null;
+async function getStore(){if(S.store)return S.store;let d;try{d=await (await fetch('store-default.json?_='+Date.now())).json()}catch(e){d={whatsapp:'',hold:15,sham:{account:'',name:'',qr:''},crypto:[],items:[]}}
+ try{const v=await FBA.get('storecfg');if(typeof v==='string'){const o=JSON.parse(v);d={...d,...o,sham:{...d.sham,...(o.sham||{})}}}}catch(e){}
+ return S.store=d}
+async function loadO(){try{const all=await FBA.get('orders')||{},st=await getStore();S.ord=[];
+ for(const [uid,m] of Object.entries(all))for(const [id,o] of Object.entries(m||{}))if(o&&typeof o==='object')S.ord.push({uid,id,...o});
+ S.ord.sort((a,b)=>(b.t||0)-(a.t||0));renderO();const n=S.ord.filter(o=>o.s==='p').length,b=$('#oBadge');if(b){b.textContent=n;b.style.display=n?'grid':'none'}void st}catch(e){msg('تعذّر تحميل الطلبات: '+(e.message==='DENIED'?'القواعد لا تسمح (انشر database.rules.json)':e.message))}}
+function renderO(){const hold=((S.store&&S.store.hold)||15)*60000,q=S.oq.trim().toLowerCase();
+ const L=S.ord.filter(o=>(!S.of||o.s===S.of)&&(!q||String(o.u).toLowerCase().includes(q)||String(o.tx).toLowerCase().includes(q)));
+ $('#oList').innerHTML=L.length?L.map(o=>{const left=(o.t||0)+hold-Date.now(),late=o.s==='p'&&left<=0,stt={p:'قيد المراجعة',a:'مقبول',r:'مرفوض'}[o.s]||'—';
+ return `<div class="ord ${o.s}"><div class="h"><b dir="ltr">@${esc(unk(o.u))}</b><span class="pill ${o.s}">${stt}</span>${late?'<span class="pill">انتهى المؤقت</span>':o.s==='p'?`<span class="pill">متبقٍ ${Math.max(0,Math.floor(left/60000))} د</span>`:''}<span class="sp" style="flex:1"></span><small>${fmtT(o.t)}</small></div>
+ <div style="margin:6px 0">🛍️ <b>${esc(o.n)}</b> · $${esc(o.p)} · ${esc(o.m)}${(()=>{const c=((S.store&&S.store.items)||[]).find(x=>x.id===o.i);return c&&c.price!==o.p?` <span class="pill r">⚠️ سعر المتجر $${esc(c.price)}</span>`:(!c?' <span class="pill r">⚠️ منتج غير موجود</span>':'')})()}</div><div>رمز المعاملة: <span class="tx">${esc(o.tx)}</span> <button class="g" onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(String(o.tx))}).then(()=>msg('نُسخ'))">نسخ</button></div>
+ <div class="bar">${o.s==='p'?`<button class="ok" onclick="ordDo('${o.uid}','${o.id}','a')">✓ قبول وتفعيل</button><button class="r" style="padding:9px 14px" onclick="ordDo('${o.uid}','${o.id}','r')">✕ رفض</button>`:o.s==='r'?`<button class="ok" onclick="ordDo('${o.uid}','${o.id}','a')">✓ قبول رغم الرفض</button>`:''}<span class="sp"></span><button class="g" onclick="ordDel('${o.uid}','${o.id}')">🗑 حذف السجل</button></div></div>`}).join(''):'<small>لا توجد طلبات.</small>'}
+async function ordDo(uid,id,to){try{const o=S.ord.find(x=>x.uid===uid&&x.id===id);if(!o)return;const st=await getStore(),it=st.items.find(x=>x.id===o.i)||{kind:'?'},u=unk(o.u),patch={};
+ if(to==='a'){const row=S.rows.find(r=>String(r[1]).toLowerCase()===u.toLowerCase());let note='';
+  switch(it.kind){
+   case 'villa':if(!row)return msg('البيت غير موجود في القائمة');row[6]=1;S.dirty=true;note=' — صار فيلا، اضغط 🚀 نشر';break;
+   case 'tower':if(!row)return msg('البيت غير موجود في القائمة');row[2]=4;row[6]=0;S.dirty=true;note=' — صار برجاً، اضغط 🚀 نشر';break;
+   case 'upgrade':if(!row)return msg('البيت غير موجود في القائمة');row[2]=Math.min(4,(row[2]||1)+1);S.dirty=true;note=' — رُقّي إلى المستوى '+row[2]+'، اضغط 🚀 نشر';break;
+   case 'landmark':patch['owned/'+o.u+'/landmark']=1;break;
+   case 'badge_blue':patch['verified/'+o.u]='blue';break;
+   case 'badge_gold':patch['verified/'+o.u]='gold';break;
+   default:patch['owned/'+o.u+'/'+o.i]=1}
+  patch['orders/'+uid+'/'+id+'/s']='a';patch['orders/'+uid+'/'+id+'/at']=Date.now();patch['orders/'+uid+'/'+id+'/k']=it.kind;
+  await FBA.patch('',patch);msg('تم قبول الطلب وتفعيله ✓'+note);
+ }else{await FBA.patch('',{['orders/'+uid+'/'+id+'/s']:'r'});msg('رُفض الطلب')}
+ o.s=to;renderO();renderU();sum()}catch(e){msg('فشل: '+(e.message==='DENIED'?'لا صلاحية':e.message))}}
+async function ordDel(uid,id){if(!confirm('حذف سجل الطلب نهائياً؟'))return;try{await FBA.patch('',{['orders/'+uid+'/'+id]:null});S.ord=S.ord.filter(x=>!(x.uid===uid&&x.id===id));renderO()}catch(e){msg('فشل: '+e.message)}}
+setInterval(()=>{if($('#app').style.display!=='none'&&!document.hidden)loadO().catch(()=>{})},60000);
+
+async function loadSt(){const st=await getStore();$('#stWa').value=st.whatsapp||'';$('#stHold').value=st.hold||15;$('#stSh').value=st.sham.account||'';$('#stShN').value=st.sham.name||'';stQrShow();stCrFill();stItFill()}
+function stQrShow(){const i=$('#stQr'),q=S.store&&S.store.sham.qr;i.style.display=q?'block':'none';if(q)i.src=q}
+function stQrDel(){S.store.sham.qr='';stQrShow()}
+$('#stQrF').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const k=Math.min(1,520/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+ let d=c.toDataURL('image/jpeg',.82);if(d.length>200000)d=c.toDataURL('image/jpeg',.6);S.store.sham.qr=d;stQrShow();URL.revokeObjectURL(u);msg('أُضيفت الصورة ('+Math.round(d.length/1024)+' KB) — اضغط 💾 حفظ المتجر')};im.onerror=()=>msg('تعذّر قراءة الصورة');im.src=u});
+function stCrFill(){const C=S.store.crypto||[];$('#stCr').innerHTML='<tr><th></th><th>العملة/الشبكة</th><th>عنوان المحفظة</th></tr>'+C.map((c,i)=>`<tr><td><button class="r" onclick="stCrDel(${i})">✕</button></td><td><input value="${esc(c.coin)}" onchange="S.store.crypto[${i}].coin=this.value"></td><td><input dir="ltr" style="min-width:260px" value="${esc(c.addr)}" onchange="S.store.crypto[${i}].addr=this.value.trim()"></td></tr>`).join('')}
+function stCrAdd(){(S.store.crypto=S.store.crypto||[]).push({coin:'USDT (TRC20)',addr:''});stCrFill()}
+function stCrDel(i){S.store.crypto.splice(i,1);stCrFill()}
+const CATN={house:'بيوت',badge:'توثيق',furn:'أثاث',car:'سيارات'},KINDS=['villa','tower','landmark','upgrade','badge_blue','badge_gold','furn','car'];
+function stItFill(){$('#stIt').innerHTML='<tr><th></th><th>المعرّف</th><th>القسم</th><th>النوع</th><th>إيموجي</th><th>الاسم</th><th>السعر $</th><th>وصف</th><th>لون السيارة</th></tr>'+S.store.items.map((x,i)=>`<tr><td><button class="r" onclick="stItDel(${i})">✕</button></td>
+ <td><input dir="ltr" style="min-width:90px" value="${esc(x.id)}" onchange="stItSet(${i},'id',this.value.trim())"></td>
+ <td><select onchange="stItSet(${i},'cat',this.value)">${Object.entries(CATN).map(([k,v])=>`<option value="${k}"${x.cat===k?' selected':''}>${v}</option>`).join('')}</select></td>
+ <td><select onchange="stItSet(${i},'kind',this.value)">${KINDS.map(k=>`<option${x.kind===k?' selected':''}>${k}</option>`).join('')}</select></td>
+ <td><input style="min-width:50px;width:60px" value="${esc(x.emoji)}" onchange="stItSet(${i},'emoji',this.value)"></td><td><input style="min-width:130px" value="${esc(x.name)}" onchange="stItSet(${i},'name',this.value)"></td>
+ <td><input type="number" style="width:80px" value="${esc(x.price)}" onchange="stItSet(${i},'price',+this.value)"></td><td><input style="min-width:200px" value="${esc(x.desc)}" onchange="stItSet(${i},'desc',this.value)"></td>
+ <td><input type="color" value="${esc(x.color||'#d64545')}" onchange="stItSet(${i},'color',this.value)" style="min-width:44px;padding:0;height:30px"></td></tr>`).join('')}
+function stItSet(i,k,v){S.store.items[i][k]=v}
+function stItAdd(){S.store.items.push({id:'item_'+Date.now().toString(36),cat:'furn',kind:'furn',emoji:'🎁',name:'منتج جديد',price:5,desc:''});stItFill()}
+function stItDel(i){if(confirm('حذف المنتج؟')){S.store.items.splice(i,1);stItFill()}}
+async function stReset(){if(!confirm('استبدال كل المنتجات بالافتراضية؟ (لا يُحفظ حتى تضغط 💾)'))return;const d=await (await fetch('store-default.json?_='+Date.now())).json();S.store.items=d.items;stItFill()}
+async function stSave(){try{const st=S.store;st.whatsapp=$('#stWa').value.replace(/[^0-9]/g,'');st.hold=Math.max(1,+$('#stHold').value||15);st.sham.account=$('#stSh').value.trim();st.sham.name=$('#stShN').value.trim();
+ const ids=st.items.map(x=>x.id);if(ids.some(i=>!/^[A-Za-z0-9_]{1,30}$/.test(i))||new Set(ids).size!==ids.length)return msg('معرّفات المنتجات يجب أن تكون حروفاً إنجليزية/أرقاماً/شرطة سفلية وغير مكررة');
+ await FBA.patch('',{storecfg:JSON.stringify(st)});msg('تم حفظ المتجر ✓ يظهر للزوار فوراً')}catch(e){msg('فشل الحفظ: '+(e.message==='DENIED'?'لا صلاحية (انشر القواعد)':e.message))}}
+
+async function loadVf(){try{const v=await FBA.get('verified')||{};S.vf=v;$('#vfT2').innerHTML='<tr><th></th><th>الحساب</th><th>العلامة</th></tr>'+Object.entries(v).map(([k,t])=>`<tr><td><button class="r" onclick="vfDelK('${esc(k)}')">✕</button></td><td dir="ltr">@${esc(unk(k))}</td><td>${t==='gold'?'🟡 أصفر':'🔵 أزرق'}</td></tr>`).join('')}catch(e){msg('تعذّر التحميل: '+e.message)}}
+async function vfSet(){const k=ky($('#vfU').value);if(!k)return msg('اكتب اسم الحساب');try{await FBA.patch('verified',{[k]:$('#vfT').value});msg('تم التوثيق ✓');$('#vfU').value='';loadVf()}catch(e){msg('فشل: '+e.message)}}
+async function vfDel(){const k=ky($('#vfU').value);if(k)vfDelK(k)}
+async function vfDelK(k){try{await FBA.patch('verified',{[k]:null});msg('أُزيل التوثيق');loadVf()}catch(e){msg('فشل: '+e.message)}}
+
 addEventListener('beforeunload',e=>{if(S.dirty){e.preventDefault();e.returnValue=''}});
-function enter(){$('#login').style.display='none';$('#app').style.display='block';$('#who').textContent=FBA.email();tab('u');load()}
+function enter(){$('#login').style.display='none';$('#app').style.display='block';$('#who').textContent=FBA.email();tab('u');load();setTimeout(()=>loadO().catch(()=>{}),1500)}
 async function doLogin(){const e=$('#lerr');e.textContent='';try{await FBA.signIn($('#em').value,$('#pw').value);
  if(!(await FBA.checkAdmin())){FBA.signOut();throw Error('هذا الحساب ليس أدمن')}$('#pw').value='';enter()}catch(x){e.textContent=x.message}}
 function logout(){FBA.signOut();location.reload()}

@@ -99,6 +99,31 @@
     },
     "$other": {
       ".validate": false
+    },
+    "storecfg": {
+      ".read": true,
+      ".validate": "newData.isString() && newData.val().length < 600000"
+    },
+    "verified": {
+      ".read": true,
+      "$u": {
+        ".validate": "newData.isString() && (newData.val() === 'blue' || newData.val() === 'gold')"
+      }
+    },
+    "owned": {
+      ".read": true
+    },
+    "orders": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$id": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.child('s').val() === 'p' && root.child('claims').child(newData.child('u').val()).val() === $uid",
+          ".validate": "newData.hasChildren(['u','i','n','p','m','tx','t','s']) && (newData.child('s').val() === 'p' || newData.child('s').val() === 'a' || newData.child('s').val() === 'r') && newData.child('u').isString() && newData.child('u').val().matches(/^[a-z0-9_,]{1,40}$/) && newData.child('i').isString() && newData.child('i').val().length <= 30 && newData.child('n').isString() && newData.child('n').val().length <= 80 && newData.child('p').isNumber() && newData.child('m').isString() && newData.child('m').val().length <= 40 && newData.child('tx').isString() && newData.child('tx').val().length >= 4 && newData.child('tx').val().length <= 120 && newData.child('t').isNumber()",
+          "$f": {
+            ".validate": "$f === 'u' || $f === 'i' || $f === 'n' || $f === 'p' || $f === 'm' || $f === 'tx' || $f === 't' || $f === 's' || $f === 'at' || $f === 'k'"
+          }
+        }
+      }
     }
   }
 }

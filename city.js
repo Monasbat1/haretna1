@@ -32,6 +32,9 @@ import { fence, crossing, FLAGS as CROSSING_FLAGS } from './models/border.js';
 import { hejazStation, viaduct, platform as railPlatform, bufferStop, train as trainModel, RAIL } from './models/railway.js';
 import { TOWN_AT, landPolygon, inside as inPolygon, compactOrder, spiralIndex, SWORD_TILES, SWORD_SCALE } from './models/maps.js';
 import * as social from './social.js'; // الدردشة + الشخصية + زر إخفاء الأزرار
+import { createTraffic } from './traffic.js'; // إشارات المرور
+import { createDrive } from './drive.js';     // قيادة السيارة الخاصة
+import { createShop } from './shop.js';       // التسوق والدفع والدخول للبيت
 import { airport as airportModel, airliner, LIVERIES, SIZE as AIR_SIZE, RUNWAY, TAXI, GATES, STAND_Z, GROUND_Y, ROAD as AIR_ROAD, SIGN as AIR_SIGN, FLAG as AIR_FLAG, RADAR, radarMast, radarDish, airportLights, lightSpots, BEACON } from './models/airport.js';
 
 const $ = (s) => document.querySelector(s);
@@ -761,13 +764,49 @@ function spawnCars() {
     cars.push(car);
   }
 }
+// ---- traffic: a city car slows to a halt at a red light, for the car or the person
+// in front of it (yours, a walker, another city car), and honks when you block it.
+function trafficBlockers() {
+  const out = [];
+  if (drive && drive.on) out.push({ x: drive.state.x, z: drive.state.z, car: true });
+  if (walker.on) out.push({ x: walker.x, z: walker.z, car: false });
+  return out;
+}
+function carBrake(car, now, blockers, dt) {
+  let want = 1;
+  if (car.px !== undefined) {
+    // 1) a red or yellow light at the crossing ahead (only on a straight road, before the stop line)
+    if (car.onRoad && traffic) {
+      const rem = car.piece.len - car.s, axis = car.dir[0] ? 'x' : 'z';
+      if (rem < 8 && rem > 1.4 && traffic.state(car.at[0], car.at[1], axis, Date.now()) !== 'g') want = 0;
+    }
+    // 2) someone in front: the player's car, a walker, another city car
+    for (const b of blockers) {
+      const dx = b.x - car.px, dz = b.z - car.pz, ahead = dx * car.hx + dz * car.hz, side = Math.abs(dx * car.hz - dz * car.hx);
+      if (ahead > 0 && ahead < (b.car ? 11 : 8) && side < 2.4) {
+        want = Math.min(want, ahead < 5 ? 0 : 0.4);
+        if (b.car && ahead < 9 && car.v < 0.15) { car.held = (car.held || 0) + dt; if (car.held > 1.4 && drive) { drive.honkAt(car.px, car.pz); car.held = 0.4; } }
+      }
+    }
+    if (want > 0) car.held = 0;
+    for (const o of cars) {
+      if (o === car || o.px === undefined) continue;
+      const dx = o.px - car.px, dz = o.pz - car.pz, ahead = dx * car.hx + dz * car.hz, side = Math.abs(dx * car.hz - dz * car.hx);
+      if (ahead > 0 && ahead < 7 && side < 2.2 && o.hx * car.hx + o.hz * car.hz > 0.5) want = Math.min(want, ahead < 4 ? 0 : 0.5);
+    }
+  }
+  const v = car.v === undefined ? 1 : car.v;
+  return v + (want - v) * Math.min(1, dt * (want < v ? 4.5 : 1.8));
+}
 function updateCars(now) {
   const dt = Math.min(0.1, Math.max(0, (now - lastCarNow) / 1000));
   lastCarNow = now;
   if (carsDirty) spawnCars();
+  const blockers = trafficBlockers();
   for (const car of cars) {
     if (!reducedMotion) {
-      car.s += dt * CAR_SPEED;
+      car.v = carBrake(car, now, blockers, dt);
+      car.s += dt * CAR_SPEED * car.v;
       while (car.s >= car.piece.len) {
         car.s -= car.piece.len;
         if (car.onRoad) turnPiece(car);
@@ -781,6 +820,7 @@ function updateCars(now) {
     car.pool.mesh.setMatrixAt(car.idx, _base);
     car.pool.dirty = true;
     part(beamPool, car.beam, 0, 0.06, 1.25, 2.6, 1, 7.5);
+    const hl = Math.hypot(hx, hz) || 1; car.px = x; car.pz = z; car.hx = hx / hl; car.hz = hz / hl; // where it is and where it looks (for the cars behind it)
   }
   updateHighwayCars(now);
 }
@@ -2865,7 +2905,8 @@ function nearbyHouses(x, z, radius) {
 function drawLabel(sprite, rec) {
   const { ctx, canvas: c, tex } = sprite.userData;
   const on = rec === selected;
-  pill(ctx, c.width, c.height, '@' + rec.username, on ? '#e1306c' : 'rgba(255,255,255,.94)', on ? '#ffffff' : '#1d2433', 44);
+  const bd = hzShop ? hzShop.badgeOf(rec.username) : '';
+  pill(ctx, c.width, c.height, '@' + rec.username + (bd ? ' ✔' : ''), on ? '#e1306c' : bd === 'gold' ? '#f5b800' : bd === 'blue' ? '#1d9bf0' : 'rgba(255,255,255,.94)', on ? '#ffffff' : bd === 'gold' ? '#3a2a00' : bd === 'blue' ? '#ffffff' : '#1d2433', 44);
   tex.needsUpdate = true;
   sprite.userData.rec = rec;
   sprite.userData.on = on;
@@ -3042,6 +3083,7 @@ function showCard(on, name, meta, isHouse, showReels) {
   $('#cardReels').hidden = !showReels;
   $('#cardHeart').hidden = true; // only the portrait that takes hearts shows it
   $('#cardTour').hidden = true;  // only Jeita Grotto's card shows it (selectLandmark)
+  $('#cardEnter').hidden = true; // only a house's card shows it (showHouseCard)
   $('#cardFlag').hidden = true; // only houses with a country show one
 }
 
@@ -3094,7 +3136,10 @@ function showHouseCard(rec) {
   const village = rec && rec.town.code;
   const country = rec && rec.country && rec.country !== village ? ' · ' + (countryNames[rec.country] || rec.country) : '';
   const level = rec && (rec.villa ? 'فيلا 👑' : rec.level === MAX_LEVEL ? 'برج 🏢' : 'مستوى ' + rec.level);
-  showCard(!!rec, rec && '@' + rec.username, rec && `بيت رقم ${rec.i + 1} · ${village ? 'حارة ' + rec.town.name + ' · ' : ''}${level}${country}`, true, false);
+  const bd = rec && hzShop ? hzShop.badgeOf(rec.username) : '';
+  showCard(!!rec, rec && '@' + rec.username + (bd ? (bd === 'gold' ? ' 🟡✔' : ' 🔵✔') : ''), rec && `بيت رقم ${rec.i + 1} · ${village ? 'حارة ' + rec.town.name + ' · ' : ''}${level}${country}`, true, false);
+  $('#cardEnter').hidden = !rec;
+  if (rec) $('#cardEnter').textContent = social.me() === rec.username ? '🚪 دخول بيتي والترقية' : '🚪 دخول البيت';
   if (rec && rec.country) {
     $('#cardFlag').src = FLAG_CDN + rec.country.toLowerCase() + '.svg';
     $('#cardFlag').hidden = false;
@@ -3757,7 +3802,8 @@ function tick(now) {
 
   if (tour) tourStep(now); // the boat tour drives the camera; the hands and keys wait
   else {
-    if (walker.on) walkerStep(dt); // my character: the camera follows it, free of the city's limits
+    if (drive && drive.on) drive.update(dt, Date.now()); // my car: the camera chases it, the road and the houses stop it
+    else if (walker.on) walkerStep(dt); // my character: the camera follows it, free of the city's limits
     else {
       if (flight) {
         const t = Math.min(1, (now - flight.t0) / flight.dur);
@@ -3794,6 +3840,8 @@ function draw(now, everyFrame) {
   for (const spin of spinners) spin(now);
 
   updateNight(now);
+  if (traffic) traffic.update(controls.target.x, controls.target.z, Date.now());
+  if (hzShop) hzShop.updateDecor();
   updateCars(now);
   if (flagSquareDirty && (everyFrame || now - flagSquareAt > 700)) { flagSquareAt = now; updateFlagSquare(); }
   else if (flagSquare && Date.now() - flagSquare.podium.at > 30000) updatePodium(); // the time left on the podium's sign
@@ -3930,6 +3978,7 @@ function walkerStep(dt) {
 }
 function walkTo(x, z) { walker.x = x; walker.z = z; walker.put = 0; walker.was = true; } // the camera follows on the next frame
 async function toggleWalk() {
+  if (drive && drive.on) drive.stop();
   if (walker.on) return stopWalk();
   const name = await social.needName();
   if (!name) return;
@@ -3966,6 +4015,63 @@ function stopWalk() {
   social.dropPlayer();
 }
 addEventListener('pagehide', () => { if (walker.on) social.dropPlayer(); });
+// ------------------------------------------------------------------ تسوق · قيادة · إشارات مرور
+let hzShop = null, drive = null, traffic = null;
+{
+  const keyInput = () => ({ x: Math.max(-1, Math.min(1, walker.jx + on('right') - on('left'))), y: Math.max(-1, Math.min(1, walker.jy + on('fwd') - on('back'))) });
+  const carInstances = new Map(); // لون → { pool }
+  const makePlayerCar = (color) => {
+    let c = carInstances.get(color);
+    if (!c) { const pool = new Pool(bake((g) => carModel(g, 0, 0, color)), houseMat); poolList.push(pool); c = { pool, idx: pool.add(), beam: beamPool.add() }; carInstances.set(color, c); }
+    return {
+      place(x, z, yaw) { setBase(x, CAR_Y, z, yaw, CAR_SCALE, CAR_SCALE); c.pool.mesh.setMatrixAt(c.idx, _base); c.pool.dirty = true; part(beamPool, c.beam, 0, 0.06, 1.25, 2.6, 1, 7.5); },
+      hide() { setBase(0, -200, 0, 0, 0.001, 0.001); c.pool.mesh.setMatrixAt(c.idx, _base); c.pool.dirty = true; part(beamPool, c.beam, 0, -200, 0, 0.001, 0.001, 0.001); },
+    };
+  };
+  traffic = createTraffic({ THREE, scene, BW, BD, ROAD, paved: (bx, bz) => pavedTiles.has(bx + ',' + bz) });
+  drive = createDrive({
+    THREE, camera, controls, toast, BW, BD, SLAB_W, SLAB_D, blockAt, traffic, cars,
+    input: keyInput, makeCar: makePlayerCar,
+    extra: () => [...RESERVED.filter((r) => Array.isArray(r) && r.length === 4), { x: SWORD.x, z: SWORD.z, r: SWORD.r }],
+    onStop: () => { $('#hzCar').classList.remove('on'); },
+  });
+  const tag = (name, badge, lux) => { // لوحة اسم ذهبية/زرقاء فوق البيوت الفخمة
+    const sp = textSprite(null, 512, 120, lux ? 9 : 7);
+    pill(sp.userData.ctx, 512, 120, '@' + name + (badge ? ' ✔' : ' 👑'), badge === 'blue' ? '#1d9bf0' : '#f5b800', badge === 'blue' ? '#ffffff' : '#3a2a00', 52);
+    sp.userData.tex.needsUpdate = true; sp.renderOrder = 3;
+    return sp;
+  };
+  hzShop = createShop({
+    THREE, OrbitControls, scene, camera, toast, byName, houses, BASE_Y, MAX_LEVEL, makeTag: tag,
+    houseInfo: (rec) => (rec.villa ? 'فيلا 👑' : rec.level === MAX_LEVEL ? 'برج 🏢' : 'مستوى ' + rec.level) + ' · بيت رقم ' + (rec.i + 1),
+  });
+  window.haretnaShop = hzShop;
+  const open = () => hzShop.open();
+  $('#drawBtn').addEventListener('click', open);
+  $('#cardEnter').addEventListener('click', () => { if (selected) hzShop.openHouse(selected.username); });
+  // زر 🚗 في الشريط الجانبي
+  const dock = document.querySelector('.hz-dock');
+  const carBtn = document.createElement('button');
+  carBtn.id = 'hzCar'; carBtn.textContent = '🚗'; carBtn.title = 'سيارتي'; carBtn.setAttribute('aria-label', 'سيارتي');
+  const shopBtn = document.createElement('button');
+  shopBtn.id = 'hzShop'; shopBtn.textContent = '🛍️'; shopBtn.title = 'تسوق'; shopBtn.setAttribute('aria-label', 'تسوق');
+  shopBtn.onclick = open;
+  setTimeout(() => { const d = document.querySelector('.hz-dock'); if (d) { d.insertBefore(carBtn, d.querySelector('#hzSpeed')); d.insertBefore(shopBtn, carBtn); } }, 0); // the dock is made by social.setup just below
+  void dock;
+  carBtn.onclick = async () => {
+    if (drive.on) return drive.stop();
+    const name = await social.needName(); if (!name) return;
+    const rec = byName.get(name); if (!rec) { toast('ما لقينا بيتك بالمدينة'); return; }
+    const free = new URLSearchParams(location.search).has('freecar');
+    const color = free ? '#d64545' : hzShop.carOf(name);
+    if (!color) { toast('🚗 ما عندك سيارة بعد، اشترِ واحدة من المتجر'); hzShop.open('car'); return; }
+    if (walker.on) stopWalk();
+    takeOver();
+    const bz = Math.round(rec.z / BD);
+    drive.start(rec.x, (bz + 0.5) * BD + 1.5, Math.PI / 2, color); // on the road in front of the block, heading east
+    carBtn.classList.add('on');
+  };
+}
 social.setup({
   houseExists: (n) => byName.has(n),
   onWalk: () => toggleWalk().catch((err) => { console.error(err); toast('تعذّر تشغيل الشخصية'); }),
