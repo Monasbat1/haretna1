@@ -367,4 +367,5 @@ async function doLogin(){const e=$('#lerr');e.textContent='';try{await FBA.signI
 function logout(){FBA.signOut();location.reload()}
 $('#pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 (async()=>{if(FBA.restore()){try{if(await FBA.checkAdmin())return enter()}catch(e){}FBA.signOut()}})();
-</script></body></html>
+</script>
+<script src="airbase/admin-jet-patch.js"></script></body></html>
