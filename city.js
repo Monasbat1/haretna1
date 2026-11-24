@@ -34,7 +34,6 @@ import { TOWN_AT, landPolygon, inside as inPolygon, compactOrder, spiralIndex, S
 import * as social from './social.js'; // الدردشة + الشخصية + زر إخفاء الأزرار
 import { createTraffic } from './traffic.js'; // إشارات المرور
 import { createDrive } from './drive.js';     // قيادة السيارة الخاصة
-import { createWarJet } from './airbase/warjet.js'; // الطائرة الحربية والمطار الحربي
 import { createShop } from './shop.js';       // التسوق والدفع والدخول للبيت
 import { airport as airportModel, airliner, LIVERIES, SIZE as AIR_SIZE, RUNWAY, TAXI, GATES, STAND_Z, GROUND_Y, ROAD as AIR_ROAD, SIGN as AIR_SIGN, FLAG as AIR_FLAG, RADAR, radarMast, radarDish, airportLights, lightSpots, BEACON } from './models/airport.js';
 
@@ -1802,4 +1801,5 @@ function trainSmoke(train, length) {
       if (age < 0 || age > LIFE) m4.makeScale(0, 0, 0);
       else {
         const u = age / LIFE, r = (0.3 + 1.05 * Math.sqrt(u)) * (u > 0.75 ? (1 - u) / 0.25 : 1);
-        p.set(from[i].x + age * (1.8 + age * 0.6) + Math.sin(born[i] * 5.1) * 0.5 * u, from[i].y + age * 2.2, from[i].z + age * 0.9 + Math.cos(bor
+        p.set(from[i].x + age * (1.8 + age * 0.6) + Math.sin(born[i] * 5.1) * 0.5 * u, from[i].y + age * 2.2, from[i].z + age * 0.9 + Math.cos(born[i] * 6.7) * 0.5 * u); // the wind bends it over
+        m4.compose(p, q, sc.set(r, r
