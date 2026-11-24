@@ -1,0 +1,39 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>المطار الحربي — حارتنا</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#9ec9e8;font-family:Tajawal,system-ui,sans-serif;touch-action:none;user-select:none}
+#hud{position:fixed;top:8px;inset-inline:8px;background:#fffe;border-radius:14px;padding:8px 12px;font-weight:700;font-size:14px;z-index:2;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#hud input{padding:5px;border:1px solid #ccc;border-radius:8px;direction:ltr;width:110px}button{font:inherit;border:0;border-radius:12px;background:#e1306c;color:#fff;padding:8px 12px}
+#msg{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#b02a37;color:#fff;padding:10px 16px;border-radius:12px;font-weight:800;display:none;z-index:3;text-align:center}
+#ctl{position:fixed;bottom:10px;inset-inline:10px;display:none;justify-content:space-between;align-items:end;z-index:2}#ctl .g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#ctl button{padding:16px 12px;font-size:15px;background:#16202ccc}#ctl #e{background:#1f8a4c;display:none}#lock{display:none;color:#b02a37}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script></head>
+<body><div id="hud"><input id="u" placeholder="اسم حسابك"><button id="go">دخول</button><span id="lock">🔒 للمالك فقط — اشترها من المتجر</span><span id="st"></span></div>
+<div id="msg"></div>
+<div id="ctl"><div class="g"><button id="e">✈️ صعود (E)</button><button data-w="gun">🔫 رشاش</button><button data-w="rk">🚀 صواريخ</button><button data-w="ls">⚡ ليزر</button></div><small style="background:#fffd;padding:6px;border-radius:8px">اسحب بإصبعك للتوجيه · لوحة المفاتيح: WASD/أسهم، Space، R، L، E</small></div>
+<script type="module">
+import * as THREE from 'three';import {mountAirbase} from './jet.js';import {createGame} from './flight.js';
+// في المدينة الحقيقية: owned تأتي من قاعدة البيانات (owned/<user>/f_jet) و cfg من config.jet
+const DB='https://ahmad-662ee-default-rtdb.firebaseio.com',OWNED={ahmad:{f_jet:1}};let CFG={};
+const KEY=u=>String(u||'').trim().replace(/^@+/,'').toLowerCase().replace(/\./g,',');
+async function loadRemote(u){const k=KEY(u);try{const [a,b]=await Promise.all([fetch(DB+'/owned/'+encodeURIComponent(k)+'.json'),fetch(DB+'/city/config.json')]);
+ if(a.ok){const v=await a.json();if(v)OWNED[k]=v}if(b.ok){const c=await b.json();if(typeof c==='string')CFG=JSON.parse(c).jet||{}}}catch(e){}}
+const r=new THREE.WebGLRenderer({antialias:true});r.setSize(innerWidth,innerHeight);document.body.append(r.domElement);
+const s=new THREE.Scene();s.background=new THREE.Color('#9ec9e8');s.fog=new THREE.Fog('#9ec9e8',120,520);
+const cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,900);cam.position.set(-10,16,24);cam.lookAt(-22,2,-20);
+s.add(new THREE.HemisphereLight('#fff','#556',1.1));const d=new THREE.DirectionalLight('#fff',1.4);d.position.set(30,80,20);s.add(d);
+const gr=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),new THREE.MeshStandardMaterial({color:'#6f9a52'}));gr.rotation.x=-Math.PI/2;gr.position.y=-.01;s.add(gr);
+const $=i=>document.getElementById(i);let m=null,g=null,mt;
+const hud={msg(t){const e=$('msg');e.textContent=t;e.style.display='block';clearTimeout(mt);mt=setTimeout(()=>e.style.display='none',3500)},
+ update(S){$('st').textContent=`❤️ ${Math.max(0,S.hp|0)} · 🔫 ${S.gun} · 🚀 ${S.rockets} · ⚡ ${S.lasers} · ⬆️ ${S.alt}م · 🏆 ${S.score}`;const e=$('e');e.style.display=S.can?'block':'none';e.textContent=S.can==='land'?'🛬 هبوط (E)':'✈️ صعود (E)'}};
+async function enter(){const u=$('u').value;await loadRemote(u);if(m){s.remove(m.base.group);m.jet&&s.remove(m.jet)}g=null;
+ m=mountAirbase(s,{user:u,owned:OWNED,cfg:CFG});$('lock').style.display=m.owned?'none':'inline';$('ctl').style.display=m.owned?'flex':'none';
+ if(m.owned){g=createGame({scene:s,camera:cam,base:m.base,jet:m.jet,cfg:CFG,hud});hud.msg('انزل بالبدلة الحربية، اقترب من الطائرة واضغط صعود')}}
+$('go').onclick=enter;$('u').value=new URLSearchParams(location.search).get('user')||'';enter();
+$('e').onclick=()=>g&&g.toggle();
+document.querySelectorAll('[data-w]').forEach(b=>{const w=b.dataset.w,on=v=>e=>{e.preventDefault();g&&(g.key['on_'+w]=v)};b.onpointerdown=on(1);b.onpointerup=b.onpointerleave=on(0)});
+let o=null;r.domElement.onpointerdown=e=>o={x:e.clientX,y:e.clientY};
+addEventListener('pointermove',e=>{if(o&&g){g.inp.x=Math.max(-1,Math.min(1,(e.clientX-o.x)/60));g.inp.y=Math.max(-1,Math.min(1,(e.clientY-o.y)/60))}});
+addEventListener('pointerup',()=>{o=null;g&&(g.inp.x=g.inp.y=0)});
+let t=0,last=performance.now();(function loop(n){const dt=Math.min(.05,(n-last)/1e3);last=n;t+=dt;m.update(dt,t);g&&g.update(dt);r.render(s,cam);requestAnimationFrame(loop)})(last);
+addEventListener('resize',()=>{r.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()});
+</script></body></html>
