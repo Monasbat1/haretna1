@@ -101,6 +101,15 @@
   @media (max-height: 560px) { .nav [data-act^="rot"] { display: none; } }
 
   .modal .sheet.shop { width: min(460px, 100%); overflow: auto; }
+  .modal h3 { margin: 6px 0 0; font-size: 16px; font-weight: 800; }
+  .support-cta { display: block; text-align: center; padding: 12px 16px; border-radius: 14px; font-weight: 800; text-decoration: none; color: #fff; background: linear-gradient(135deg, var(--accent-2), var(--accent)); }
+  .support-cta[hidden] { display: none; }
+  .adbar { position: fixed; left: 8px; bottom: 8px; z-index: 5; max-width: min(300px, 70vw); display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 14px; background: rgba(255,255,255,.94); box-shadow: 0 2px 10px rgba(0,0,0,.22); font-size: 13px; }
+  .adbar[hidden] { display: none; }
+  .adbar a { display: flex; align-items: center; gap: 8px; color: #1d2433; text-decoration: none; min-width: 0; }
+  .adbar img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; flex: none; }
+  .adbar img[hidden] { display: none; }
+  .adbar button { border: 0; background: none; font-size: 14px; padding: 2px 4px; cursor: pointer; color: #66708a; }
   .shop p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
   .shop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
   .shop li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: #f4f6fa; }
@@ -208,6 +217,7 @@
   <button class="panel count coins" id="coinsBtn" type="button" aria-label="رصيد المدينة">🪙 <b id="coins">0</b> <span class="lbl">رصيد المدينة</span></button>
   <button class="reels-btn" id="reelsBtn" type="button" hidden>🎬 ريلز</button>
   <a class="btn reels-btn" id="drawBtn" href="draw.html">🎁 القرعة</a>
+  <button class="reels-btn" id="supportBtn" type="button" hidden>🤝 ادعم المدينة</button>
   <button class="panel find-btn" id="findBtn" type="button" aria-label="وين بيتي؟ ابحث باسم حسابك" aria-expanded="false" aria-controls="search">🔍</button>
   <form class="panel search" id="search" autocomplete="off">
     <input id="q" type="text" inputmode="latin" autocapitalize="none" spellcheck="false"
@@ -294,6 +304,19 @@
     <ul id="shopList"></ul>
   </div>
 </div>
+
+<div class="modal" id="support" role="dialog" aria-modal="true" aria-labelledby="supportTitle">
+  <div class="panel sheet shop">
+    <button class="close" id="supportClose" aria-label="إغلاق">✕</button>
+    <h2 id="supportTitle">🤝 ادعم المدينة</h2>
+    <p id="supportIntro"></p>
+    <ul id="supportPrices"></ul>
+    <a class="support-cta" id="supportContact" target="_blank" rel="noopener noreferrer" hidden>💬 راسلنا على إنستغرام</a>
+    <h3 id="sponsorsHead" hidden>🌟 رعاة المدينة</h3>
+    <ul id="sponsorList"></ul>
+  </div>
+</div>
+<div class="adbar" id="adBar" hidden><a id="adLink" target="_blank" rel="noopener noreferrer"><img id="adImg" alt="" hidden><span id="adText"></span></a><button id="adClose" type="button" aria-label="إغلاق الإعلان">✕</button></div>
 
 <p class="panel loading" id="loading" role="status">🏗️ عم نجهّز المدينة…</p>
 <div class="toasts" id="toasts"></div>

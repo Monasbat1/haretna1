@@ -2934,7 +2934,7 @@ function goHome() {
 addEventListener('keydown', (e) => {
   const action = KEYS[e.code];
   if (!action || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-  if ($('#reels').classList.contains('show') || $('#shop').classList.contains('show')) return;
+  if ($('#reels').classList.contains('show') || $('#shop').classList.contains('show') || $('#support').classList.contains('show')) return;
   e.preventDefault();
   takeOver();
   held.add(action);
@@ -3314,7 +3314,7 @@ $('#tourEnd').addEventListener('click', stopTour);
 $('#reelsBtn').addEventListener('click', openReels);
 $('#reelsClose').addEventListener('click', closeReels);
 $('#reels').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeReels(); });
-addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeReels(); closeShop(); } });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeReels(); closeShop(); closeSupport(); } });
 $('#cardShare').addEventListener('click', async () => {
   if (!selected) return;
   const link = location.origin + location.pathname + '?u=' + encodeURIComponent(selected.username);
@@ -3448,6 +3448,67 @@ function closeShop() { $('#shop').classList.remove('show'); }
 $('#coinsBtn').addEventListener('click', openShop);
 $('#shopClose').addEventListener('click', closeShop);
 $('#shop').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeShop(); });
+
+// ------------------------------------------------------------------ دعم المدينة: رعاة وإعلانات
+// كل ما هنا يأتي من cfg.support / cfg.sponsors / cfg.ads (تحرّرها من لوحة الأدمن).
+// الروابط: http(s) فقط. كل النصوص تُكتب بـ textContent (لا HTML).
+const safeUrl = (u) => { try { if (!String(u || '').trim()) return ''; const x = new URL(String(u).trim(), location.href); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (err) { return ''; } };
+const igLink = (h) => { const u = String(h || '').trim().replace(/^@+/, ''); return /^[A-Za-z0-9._]{1,30}$/.test(u) ? 'https://ig.me/m/' + u : safeUrl(u); };
+let support = {}, sponsors = [], ads = [], adIdx = 0, adTimer = 0, adClosed = false;
+
+function renderSupport() {
+  $('#supportIntro').textContent = support.intro || 'ادعم المدينة واحصل على برج أو معلم باسمك، أو أعلن عن مشروعك فيها.';
+  const list = $('#supportPrices');
+  list.replaceChildren();
+  for (const p of support.prices || []) {
+    const li = el('li'), body = el('div', 'grow');
+    body.append(el('b', '', String(p.name || '')));
+    if (p.desc) body.append(el('small', '', String(p.desc)));
+    li.append(el('span', 'icon', '💎'), body, el('span', 'price', String(p.price || '')));
+    list.append(li);
+  }
+  const link = igLink(support.contact), a = $('#supportContact');
+  a.hidden = !link;
+  if (link) a.href = link;
+  const sl = $('#sponsorList');
+  sl.replaceChildren();
+  $('#sponsorsHead').hidden = !sponsors.length;
+  for (const sp of sponsors) {
+    const li = el('li'), body = el('div', 'grow');
+    body.append(el('b', '', '@' + String(sp.name || '')));
+    body.append(el('small', '', String(sp.item || '') + (sp.t && countryNames[sp.t] ? ' — ' + countryNames[sp.t] : '')));
+    li.append(el('span', 'icon', '🌟'), body);
+    sl.append(li);
+  }
+}
+function showAd() {
+  const live = ads.filter((a) => a && a.active !== false && (a.title || a.img));
+  const bar = $('#adBar');
+  if (!live.length || adClosed) { bar.hidden = true; return; }
+  const ad = live[adIdx++ % live.length], link = safeUrl(ad.link), img = ad.img ? safeUrl(ad.img) : '';
+  $('#adText').textContent = 'إعلان · ' + String(ad.title || '');
+  const im = $('#adImg');
+  im.hidden = !img;
+  if (img) im.src = img;
+  const a = $('#adLink');
+  if (link) a.href = link; else a.removeAttribute('href');
+  bar.hidden = false;
+}
+function setupSupport(cfg) {
+  support = cfg.support && typeof cfg.support === 'object' ? cfg.support : {};
+  sponsors = Array.isArray(cfg.sponsors) ? cfg.sponsors : [];
+  ads = Array.isArray(cfg.ads) ? cfg.ads : [];
+  $('#supportBtn').hidden = !(support.contact || (support.prices && support.prices.length) || sponsors.length);
+  clearInterval(adTimer);
+  showAd();
+  if (ads.length > 1) adTimer = setInterval(showAd, 7000);
+}
+function openSupport() { renderSupport(); $('#support').classList.add('show'); }
+function closeSupport() { $('#support').classList.remove('show'); }
+$('#supportBtn').addEventListener('click', openSupport);
+$('#supportClose').addEventListener('click', closeSupport);
+$('#support').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeSupport(); });
+$('#adClose').addEventListener('click', () => { adClosed = true; $('#adBar').hidden = true; });
 
 // ------------------------------------------------------------------ data
 let loading = false;
@@ -3721,6 +3782,7 @@ async function start() {
     if (cfg.titles) titles = { police: {}, ...cfg.titles };
     perHouse = cfg.perHouse || 0;
     shop = cfg.shop || [];
+    setupSupport(cfg);
     setCoins(cfg.coins || 0);
     $('#reelsBtn').hidden = !reels.length;
     // Each town's territory rule starts after the block it had reached (server.js ensureFrozen).
