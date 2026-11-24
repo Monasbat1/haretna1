@@ -145,7 +145,7 @@ function picture(src) {
   im.src = src;
   return im;
 }
-const CRESTS = { wehdat: picture('/img/club-wehdat.png'), faisaly: picture('/img/club-faisaly.png') };
+const CRESTS = { wehdat: picture('img/club-wehdat.png?v=' + Math.floor(Date.now() / 60000)), faisaly: picture('img/club-faisaly.png?v=' + Math.floor(Date.now() / 60000)) };
 
 // ---- the match: the players, the referee, the ball, the flags, the crests and the screens
 const KITS = {
