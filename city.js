@@ -36,6 +36,7 @@ import * as social from './social.js'; // الدردشة + الشخصية + زر
 import { createTraffic } from './traffic.js'; // إشارات المرور
 import { createDrive } from './drive.js';     // قيادة السيارة الخاصة
 import { createWarJet } from './airbase/warjet.js'; // الطائرة الحربية والمطار الحربي
+import { createVictory } from './victory.js'; // احتفالية النصر التي يتحكم بها الأدمن
 import { createShop } from './shop.js';       // التسوق والدفع والدخول للبيت
 import { airport as airportModel, airliner, LIVERIES, SIZE as AIR_SIZE, RUNWAY, TAXI, GATES, STAND_Z, GROUND_Y, ROAD as AIR_ROAD, SIGN as AIR_SIGN, FLAG as AIR_FLAG, RADAR, radarMast, radarDish, airportLights, lightSpots, BEACON } from './models/airport.js';
 
@@ -3877,6 +3878,7 @@ function resize() {
 }
 addEventListener('resize', resize);
 
+let victoryFx = null;
 let lastLabels = 0, lastTick = 0;
 let paused = false; // true while a reel is being filmed: the camera is driven from outside
 let ready = false;  // nothing is drawn while the city is being built: half a city costs the phone as much as a whole one
@@ -3935,6 +3937,7 @@ function draw(now, everyFrame) {
   padMat.opacity = 0.35 + 0.25 * Math.sin(now / 350);
   if (boundsDirty && now - highwayAt > 1500) { highwayAt = now; buildHighways(); }
   for (const spin of spinners) spin(now);
+  if (victoryFx) victoryFx.update(now / 1000);
 
   updateNight(now);
   if (traffic) traffic.update(controls.target.x, controls.target.z, Date.now());
@@ -4248,6 +4251,8 @@ async function start() {
     buildBosra(); // the theatre of Bosra, in Damascus next to the mosque
     buildAbdali(); // Abdali Boulevard and the Rotana tower, in Jordan's village
     buildSyriaZones(cfg.pics); // Aleppo citadel, the clocks of Idlib/Freedom/Homs, Krak, Marqab, Palmyra: each in its zone
+    victoryFx = createVictory({ THREE, scene, zones: SY_ZONES.map(z => ({ id:z.id, x:z.x, z:z.z, top:z.model.top })), toast });
+    victoryFx.apply(cfg.party || {});
     D('5 world built');
     await breathe();
     const station = (cfg.landmarks || []).find((lm) => lm.type === 'station');
@@ -4276,6 +4281,10 @@ async function start() {
   frameCity();
   ready = true;
   D('8 READY');
+  let partyCheckAt = Date.now();
+  const refreshVictory = async () => { if (Date.now() - partyCheckAt < 9000) return; partyCheckAt = Date.now(); try { const fresh = await getConfig(); if (victoryFx) victoryFx.apply(fresh.party || {}); } catch(e) {} };
+  // The normal render loop calls this lightweight check at most once every nine seconds.
+  spinners.push(() => refreshVictory());
 
   const wanted = new URLSearchParams(location.search).get('u');
   if (wanted) { $('#q').value = cleanName(wanted); findHouse(wanted); }

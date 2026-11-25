@@ -48,6 +48,14 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <button onclick="load()" title="إعادة تحميل البيانات">↻ تحديث</button><button onclick="logout()">خروج</button></div>
 <div class="nav" id="tabs"></div>
 
+<div id="t_v" class="card" style="display:none">
+<b>🎆 احتفالية النصر — التحكم بالمناطق</b>
+<p><small>تظهر المؤثرات للزوار بعد الضغط على «🚀 نشر التغييرات». اختر المناطق التي تريد إقامة الاحتفال فيها.</small></p>
+<div class="row"><label><input id="vOn" type="checkbox" style="width:auto"> تفعيل الاحتفالية وإظهارها للزوار</label><label><input id="vFire" type="checkbox" style="width:auto"> ألعاب نارية</label><label><input id="vCrowd" type="checkbox" style="width:auto"> جمهور واحتفالات</label><label><input id="vMusic" type="checkbox" style="width:auto"> إتاحة الموسيقى للزوار</label></div>
+<hr><b>📍 حدد المناطق</b><div id="vZones" class="row" style="margin-top:8px"></div>
+<div class="bar"><button class="g" onclick="vAll(true)">تحديد كل المناطق</button><button class="g" onclick="vAll(false)">إلغاء التحديد</button><button class="ok" onclick="vApply()">حفظ الإعدادات (ثم اضغط نشر)</button></div>
+<small>ملاحظة: الصوت لا يبدأ تلقائياً؛ يضغط الزائر زر تشغيل الموسيقى داخل المدينة احتراماً لإعدادات المتصفح.</small>
+</div>
 <div id="t_u" class="card">
 <div class="row"><input id="q" placeholder="🔍 اسم الحساب أو الرقم" oninput="S.f=this.value;S.page=0;renderU()">
 <select id="fl" onchange="S.lv=this.value;S.page=0;renderU()"><option value="">كل المستويات</option><option value="0">محذوف</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4 برج</option><option value="v">فيلا 👑</option></select>
@@ -140,10 +148,15 @@ function setName(n,v){S.cfg.names=S.cfg.names||{};v=v.trim();if(v)S.cfg.names[n]
 const IMGS=['club-faisaly.png','club-wehdat.png','royal-crown-prince.jpg','royal-king.jpg','sarout.jpg','saudi-crown-prince.jpg','saudi-king.jpg','syria-president.jpg'];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',5000)}
-const GROUPS=[['👥 المدينة',{u:'👥 المستخدمون',c:'💬 من التعليقات'}],['🛍️ المتجر',{o:'🛒 الطلبات',st:'🏪 المتجر والدفع',vf:'✔️ التوثيق'}],['🏛️ المحتوى',{m:'🏛️ المعالم والطائرات',i:'🖼️ الصور'}],['💎 المال',{r:'💎 الرعاة والإعلانات',p:'🪙 النقاط والإعدادات'}],['⚙️ النظام',{s:'🚀 النشر'}]];
+const GROUPS=[['👥 المدينة',{u:'👥 المستخدمون',c:'💬 من التعليقات'}],['🛍️ المتجر',{o:'🛒 الطلبات',st:'🏪 المتجر والدفع',vf:'✔️ التوثيق'}],['🏛️ المحتوى',{m:'🏛️ المعالم والطائرات',i:'🖼️ الصور',v:'🎆 احتفالية النصر'}],['💎 المال',{r:'💎 الرعاة والإعلانات',p:'🪙 النقاط والإعدادات'}],['⚙️ النظام',{s:'🚀 النشر'}]];
 const TABS=Object.assign({},...GROUPS.map(g=>g[1]));
+const VICTORY_ZONES=[['aleppo','حلب'],['idlib','إدلب'],['freedom','الحرية'],['homs','حمص'],['krak','وادي النصارى'],['marqab','بانياس'],['palmyra','تدمر']];
+function vFill(){if(!S.cfg)return;const p=S.cfg.party||{};$('#vOn').checked=!!p.on;$('#vFire').checked=p.fireworks!==false;$('#vCrowd').checked=p.crowd!==false;$('#vMusic').checked=p.music!==false;const chosen=new Set(Array.isArray(p.zones)?p.zones:VICTORY_ZONES.map(z=>z[0]));$('#vZones').innerHTML=VICTORY_ZONES.map(([id,n])=>`<label style="display:flex;align-items:center;gap:7px;min-width:130px"><input type="checkbox" data-vzone="${id}" ${chosen.has(id)?'checked':''} style="width:auto"> ${n}</label>`).join('')}
+function vAll(on){document.querySelectorAll('[data-vzone]').forEach(x=>x.checked=on)}
+function vApply(){if(!S.cfg)return;S.cfg.party={on:$('#vOn').checked,fireworks:$('#vFire').checked,crowd:$('#vCrowd').checked,music:$('#vMusic').checked,zones:[...document.querySelectorAll('[data-vzone]:checked')].map(x=>x.dataset.vzone)};S.dirty=true;msg('تم تجهيز إعدادات الاحتفالية — اضغط 🚀 نشر لتظهر للزوار')}
+
 $('#tabs').innerHTML=GROUPS.map(([t,o])=>`<div class="grp"><span>${t}</span><div>${Object.entries(o).map(([k,v])=>`<button data-t="${k}" onclick="tab('${k}')">${v}${k=='o'?'<i id="oBadge" style="display:none">0</i>':''}</button>`).join('')}</div></div>`).join('');
-function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='r')spFill();if(n=='m')fillM();if(n=='i')renderI();if(n=='o')loadO();if(n=='st')loadSt();if(n=='vf')loadVf();window.scrollTo({top:0})}
+function tab(n){Object.keys(TABS).forEach(x=>{$('#t_'+x).style.display=x==n?'block':'none'});document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==n));if(n=='p')fillP();if(n=='r')spFill();if(n=='m')fillM();if(n=='i')renderI();if(n=='o')loadO();if(n=='st')loadSt();if(n=='vf')loadVf();if(n=='v')vFill();window.scrollTo({top:0})}
 async function load(){try{
  let cs=null,hs=null;
  try{[cs,hs]=await Promise.all([FBA.get('city/config'),FBA.get('city/houses')])}catch(e){if(e.message==='DENIED')throw Error('ليس لديك صلاحية')}
