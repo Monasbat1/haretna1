@@ -196,6 +196,11 @@
     body.has-card .how, body.has-card .how-btn { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { .card, .toast { transition: none; animation: none; } }
+
+  .billboard-screen{position:fixed;z-index:8;top:50%;inset-inline-start:14px;transform:translateY(-50%);width:min( min(48vw,720px), calc(100vw - 28px));max-height:76vh;padding:9px;border:3px solid #d6ad54;border-radius:16px;background:linear-gradient(145deg,#111827,#263449);box-shadow:0 12px 38px #0008;color:#fff;display:grid;gap:6px}
+  .billboard-screen[hidden]{display:none}.billboard-screen header{position:static;display:flex;align-items:center;gap:8px;padding:0;background:none;color:#fff}.billboard-screen header b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.billboard-screen .bb-media{width:100%;height:min(52vh,520px);object-fit:contain;background:#05070b;border-radius:9px}.billboard-screen video{display:block}.billboard-screen .bb-desc{font-size:13px;line-height:1.4;color:#e5e7eb;max-height:3em;overflow:auto}.billboard-screen .bb-close{border:0;border-radius:50%;width:30px;height:30px;background:#ffffff22;color:white;font-size:18px}
+  @media(max-width:640px){.billboard-screen{top:auto;bottom:70px;inset-inline:8px;transform:none;width:auto;max-height:48vh;padding:6px}.billboard-screen .bb-media{height:30vh}.billboard-screen .bb-desc{font-size:11px}}
+
 </style>
 <script type="importmap">
 { "imports": {
@@ -330,6 +335,10 @@ addEventListener('unhandledrejection',function(e){s('PROMISE: '+(e.reason&&(e.re
     <ul id="sponsorList"></ul>
   </div>
 </div>
+<section id="billboardScreen" class="billboard-screen" hidden aria-label="الشاشة الإعلانية">
+  <header><b id="bbPublicTitle">إعلان</b><button id="bbPublicClose" class="bb-close" type="button" aria-label="إغلاق">×</button></header>
+  <div id="bbPublicMedia"></div><div id="bbPublicDesc" class="bb-desc" hidden></div>
+</section>
 <div class="adbar" id="adBar" hidden><a id="adLink" target="_blank" rel="noopener noreferrer"><img id="adImg" alt="" hidden><span id="adText"></span></a><button id="adClose" type="button" aria-label="إغلاق الإعلان">✕</button></div>
 
 <p class="panel loading" id="loading" role="status">🏗️ عم نجهّز المدينة…</p>

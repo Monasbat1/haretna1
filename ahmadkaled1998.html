@@ -1,6 +1,6 @@
 <!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://ahmad-662ee-default-rtdb.firebaseio.com; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: https:; media-src https: blob: data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://ahmad-662ee-default-rtdb.firebaseio.com; base-uri 'none'; form-action 'none'">
 <title>لوحة إدارة حارتنا</title>
 <style>
 :root{--bg:#eef3f9;--p:#1f6feb;--pd:#0a3d91;--t:#16202c;--b:#d0dae6;--mu:#667085;--ok:#1f8a4c;--bad:#d73a49}
@@ -86,7 +86,14 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <details open><summary>إضافة راعٍ (معلم أو برج باسمه)</summary>
 <div class="row"><input id="spN" placeholder="اسم المتابع (@username)" dir="ltr"><select id="spT"></select><select id="spO"></select><input id="spB" type="number" placeholder="رقم البلوك (اختياري)"></div>
 <button onclick="spAddSponsor()">＋ إضافة المعلم</button><div class="w"><table id="spS"></table></div></details>
-<details><summary>الإعلانات (شريط صغير في الموقع)</summary><div class="w"><table id="spA"></table></div><button class="g" onclick="spAddAd()">＋ إعلان</button></details></div>
+<details><summary>الإعلانات (شريط صغير في الموقع)</summary><div class="w"><table id="spA"></table></div><button class="g" onclick="spAddAd()">＋ إعلان</button></details>
+<details open><summary>📺 الشاشات الإعلانية الكبيرة — شاشة لكل دولة</summary>
+<p><small>أضف صورة أو فيديو برابط مباشر. الفيديو يظهر بأزرار التحكم والصوت، والوصف اختياري. اختر الدولة والمعلم القريب منها، ثم اضغط «🚀 نشر التغييرات».</small></p>
+<div class="row"><input id="bbTitle" placeholder="عنوان الإعلان"><select id="bbCountry"></select><select id="bbType"><option value="video">فيديو مع صوت</option><option value="image">صورة</option></select></div>
+<div class="row"><input id="bbSrc" dir="ltr" placeholder="رابط مباشر للصورة أو الفيديو"><input id="bbLandmark" placeholder="اسم المعلم الأساسي (اختياري)"></div>
+<textarea id="bbDesc" rows="2" style="min-height:65px;direction:rtl" placeholder="وصف الإعلان — اختياري"></textarea>
+<div class="bar"><button onclick="bbAdd()">＋ إضافة شاشة / إعلان</button><small>يمكن إضافة أكثر من إعلان لكل دولة، ويُعرض النشط منها بالتتابع.</small></div>
+<div id="billboardAdmin"></div></details></div>
 
 <div id="t_p" class="card" style="display:none"><b>النقاط والرصيد والمتجر</b>
 <div class="row"><label>رصيد المدينة 🪙<input id="coins" type="number"></label><label>نقاط كل بيت جديد<input id="perHouse" type="number"></label><label>اسم الحساب<input id="acc"></label></div>
@@ -233,13 +240,19 @@ function spFill(){if(!S.cfg)return;const c=spCfg(),sp=c.support,cn=c.countries||
  $('#spT').innerHTML=(c.shop||[]).map(s=>`<option value="${esc(s.type)}">${esc(s.name)}</option>`).join('');
  $('#spO').innerHTML='<option value="">سوريا (الوسط)</option>'+TOWN.map(t=>`<option value="${t}">${esc(cn[t]||t)}</option>`).join('');
  $('#spS').innerHTML='<tr><th></th><th>الراعي</th><th>المعلم</th><th>الدولة</th><th>بلوك</th><th>التاريخ</th></tr>'+c.sponsors.map((x,i)=>`<tr><td><button class="r" onclick="spDelSponsor(${i})">✕</button></td><td dir="ltr">@${esc(x.name)}</td><td>${esc(x.item)}</td><td>${esc(x.t?(cn[x.t]||x.t):'سوريا')}</td><td>${esc(x.block)}</td><td>${esc(x.date)}</td></tr>`).join('');
- $('#spA').innerHTML='<tr><th></th><th>العنوان</th><th>صورة (رابط)</th><th>رابط الإعلان</th><th>فعّال</th></tr>'+c.ads.map((a,i)=>`<tr><td><button class="r" onclick="spDel('a',${i})">✕</button></td><td><input value="${esc(a.title)}" onchange="spEdit('a',${i},'title',this.value)"></td><td><input dir="ltr" value="${esc(a.img)}" onchange="spEdit('a',${i},'img',this.value)"></td><td><input dir="ltr" value="${esc(a.link)}" onchange="spEdit('a',${i},'link',this.value)"></td><td><input type="checkbox" ${a.active!==false?'checked':''} onchange="spEdit('a',${i},'active',this.checked)"></td></tr>`).join('')}
+ $('#spA').innerHTML='<tr><th></th><th>العنوان</th><th>صورة (رابط)</th><th>رابط الإعلان</th><th>فعّال</th></tr>'+c.ads.map((a,i)=>`<tr><td><button class="r" onclick="spDel('a',${i})">✕</button></td><td><input value="${esc(a.title)}" onchange="spEdit('a',${i},'title',this.value)"></td><td><input dir="ltr" value="${esc(a.img)}" onchange="spEdit('a',${i},'img',this.value)"></td><td><input dir="ltr" value="${esc(a.link)}" onchange="spEdit('a',${i},'link',this.value)"></td><td><input type="checkbox" ${a.active!==false?'checked':''} onchange="spEdit('a',${i},'active',this.checked)"></td></tr>`).join('')
+ c.billboards=Array.isArray(c.billboards)?c.billboards:[];$('#bbCountry').innerHTML='<option value="">سوريا</option>'+TOWN.map(t=>`<option value="${t}">${esc(cn[t]||t)}</option>`).join('');bbFill();}
 function spList(w){const c=spCfg();return w=='p'?c.support.prices:c.ads}
 function spSave(){const c=spCfg();c.support.contact=$('#spC').value.trim().replace(/^@+/,'');c.support.intro=$('#spI').value;S.dirty=true}
 function spEdit(w,i,k,v){const a=spList(w);if(!a[i])return;a[i][k]=v;S.dirty=true}
 function spDel(w,i){spList(w).splice(i,1);S.dirty=true;spFill()}
 function spAddPrice(){spCfg().support.prices.push({name:'برج باسمك',price:'',desc:''});S.dirty=true;spFill()}
 function spAddAd(){spCfg().ads.push({title:'إعلان جديد',img:'',link:'',active:true});S.dirty=true;spFill()}
+function bbFill(){const a=spCfg().billboards;const cn=S.cfg.countries||{};$('#billboardAdmin').innerHTML=a.map((x,i)=>`<div class="ord"><div class="h"><b>${esc(x.title||'شاشة إعلانية')}</b><span class="pill">${esc(x.country?(cn[x.country]||x.country):'سوريا')}</span><span class="pill">${x.type==='video'?'فيديو':'صورة'}</span><span class="sp"></span><label><input type="checkbox" style="width:auto" ${x.active!==false?'checked':''} onchange="bbEdit(${i},'active',this.checked)"> فعّال</label><button class="r" onclick="bbDel(${i})">حذف</button></div><div class="row"><input value="${esc(x.title||'')}" placeholder="العنوان" onchange="bbEdit(${i},'title',this.value)"><select onchange="bbEdit(${i},'country',this.value)"><option value="" ${!x.country?'selected':''}>سوريا</option>${TOWN.map(t=>`<option value="${t}" ${x.country===t?'selected':''}>${esc(cn[t]||t)}</option>`).join('')}</select><select onchange="bbEdit(${i},'type',this.value)"><option value="video" ${x.type==='video'?'selected':''}>فيديو</option><option value="image" ${x.type==='image'?'selected':''}>صورة</option></select></div><input dir="ltr" value="${esc(x.src||'')}" placeholder="رابط الوسائط" onchange="bbEdit(${i},'src',this.value)"><div class="row"><input value="${esc(x.landmark||'')}" placeholder="المعلم القريب" onchange="bbEdit(${i},'landmark',this.value)"><input value="${esc(x.desc||'')}" placeholder="الوصف (اختياري)" onchange="bbEdit(${i},'desc',this.value)"></div></div>`).join('')||'<small>لا توجد شاشات إعلانية بعد.</small>'}
+function bbEdit(i,k,v){const a=spCfg().billboards[i];if(!a)return;a[k]=v;S.dirty=true}
+function bbDel(i){if(!confirm('حذف هذه الشاشة؟'))return;spCfg().billboards.splice(i,1);S.dirty=true;bbFill()}
+function bbAdd(){const title=$('#bbTitle').value.trim(),src=$('#bbSrc').value.trim();if(!src)return msg('أدخل رابط الصورة أو الفيديو');if(!/^https?:\/\//i.test(src))return msg('يجب أن يبدأ الرابط بـ https:// أو http://');spCfg().billboards.push({id:Date.now(),title,country:$('#bbCountry').value,type:$('#bbType').value,src,landmark:$('#bbLandmark').value.trim(),desc:$('#bbDesc').value.trim(),active:true});$('#bbTitle').value='';$('#bbSrc').value='';$('#bbLandmark').value='';$('#bbDesc').value='';S.dirty=true;bbFill();msg('تمت إضافة الشاشة — اضغط 🚀 نشر التغييرات')}
+
 function spAddSponsor(){if(!S.cfg)return msg('لم تُحمَّل البيانات بعد');const c=spCfg();
  const nm=$('#spN').value.trim().replace(/^@+/,'');if(!/^[A-Za-z0-9._]{1,30}$/.test(nm))return msg('اكتب اسم حساب إنستغرام صحيح (حروف إنجليزية وأرقام ونقطة وشرطة سفلية)');
  const type=$('#spT').value,town=$('#spO').value;if(!type)return msg('أضف معلماً في المتجر أولاً (تبويب النقاط)');

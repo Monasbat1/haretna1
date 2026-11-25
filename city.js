@@ -3587,6 +3587,7 @@ function townView(t) {
 }
 function chooseTown(t) {
   takeOver();
+  showBillboard(t.code || '');
   for (const o of document.querySelectorAll('#towns [data-town]')) o.classList.toggle('on', townFor(o.dataset.town) === t);
   if (t.group) selectLandmark(t.group.userData.entry); // its card (how many houses, how to get one)
   else select(null);
@@ -3672,6 +3673,18 @@ $('#shop').addEventListener('click', (e) => { if (e.target === e.currentTarget) 
 const safeUrl = (u) => { try { if (!String(u || '').trim()) return ''; const x = new URL(String(u).trim(), location.href); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (err) { return ''; } };
 const igLink = (h) => { const u = String(h || '').trim().replace(/^@+/, ''); return /^[A-Za-z0-9._]{1,30}$/.test(u) ? 'https://ig.me/m/' + u : safeUrl(u); };
 let support = {}, sponsors = [], ads = [], adIdx = 0, adTimer = 0, adClosed = false;
+let billboards = [], billboardCountry = '', billboardIndex = 0, billboardClosed = false;
+function safeMediaUrl(u) { const x=safeUrl(u); return x && /^https?:$/.test(new URL(x).protocol) ? x : ''; }
+function showBillboard(country = '') {
+  billboardCountry=country||''; const box=$('#billboardScreen'); if(!box)return;
+  const items=billboards.filter(x=>x&&x.active!==false&&(x.country||'')===billboardCountry&&safeMediaUrl(x.src));
+  if(!items.length||billboardClosed){box.hidden=true;return;}
+  const ad=items[billboardIndex++%items.length]; $('#bbPublicTitle').textContent=(ad.title||'إعلان')+(ad.landmark?' · قرب '+ad.landmark:'');
+  const host=$('#bbPublicMedia');host.replaceChildren(); const src=safeMediaUrl(ad.src);
+  if(ad.type==='image'){const im=el('img','bb-media');im.alt=ad.title||'صورة إعلانية';im.src=src;host.append(im);}else{const v=el('video','bb-media');v.src=src;v.controls=true;v.playsInline=true;v.preload='metadata';v.setAttribute('aria-label',ad.title||'فيديو إعلاني');host.append(v);}
+  const d=$('#bbPublicDesc');d.textContent=ad.desc||'';d.hidden=!ad.desc;box.hidden=false;
+}
+$('#bbPublicClose')?.addEventListener('click',()=>{billboardClosed=true;$('#billboardScreen').hidden=true;});
 
 function renderSupport() {
   $('#supportIntro').textContent = support.intro || 'ادعم المدينة واحصل على برج أو معلم باسمك، أو أعلن عن مشروعك فيها.';
@@ -3715,6 +3728,7 @@ function setupSupport(cfg) {
   support = cfg.support && typeof cfg.support === 'object' ? cfg.support : {};
   sponsors = Array.isArray(cfg.sponsors) ? cfg.sponsors : [];
   ads = Array.isArray(cfg.ads) ? cfg.ads : [];
+  billboards = Array.isArray(cfg.billboards) ? cfg.billboards : []; billboardClosed=false; billboardIndex=0; showBillboard('');
   $('#supportBtn').hidden = !(support.contact || (support.prices && support.prices.length) || sponsors.length);
   clearInterval(adTimer);
   showAd();
