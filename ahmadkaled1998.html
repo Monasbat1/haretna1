@@ -38,6 +38,9 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 .pill.p{background:#fff3cd;color:#8a6d00}.pill.a{background:#d8f5e3;color:var(--ok)}.pill.r{background:#ffd9d9;color:#b02a37}
 .qr{width:150px;height:150px;object-fit:contain;border:1px solid var(--b);border-radius:12px;background:#fff}
 .tx{direction:ltr;font-family:monospace;background:#f3f6fa;border-radius:8px;padding:4px 8px;display:inline-block;word-break:break-all}
+.lm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:8px}
+.lm-item{border:1px solid var(--b);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fafbfd}
+.lm-item.off{opacity:.55;background:#fff5f5}
 </style></head><body>
 <div id="login" class="card"><b>🔐 دخول الأدمن</b>
 <input id="em" type="email" autocomplete="username" placeholder="البريد الإلكتروني" dir="ltr">
@@ -88,9 +91,16 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <button class="g" onclick="newRace()">بدء سباق جديد (7 أيام)</button>
 <hr><b>متقدم: كل الإعدادات (JSON) — المعالم، العناوين، الدول، الريلز...</b><textarea id="cfgText"></textarea><button onclick="applyCfg()">تطبيق JSON</button></div>
 
-<div id="t_m" class="card" style="display:none"><b>🏛️ المعالم</b> <small id="lmState"></small>
+<div id="t_m" class="card" style="display:none"><b>🎆 حفلة نصر سوريا والألعاب النارية</b> <small id="celebState"></small>
+<div><small>إزالة أو إعادة حفلة النصر والألعاب النارية فوق معالم سوريا، وتُحفظ وتُنشر مع 🚀 نشر.</small></div>
+<div class="bar"><button id="celebBtn" class="ok" onclick="celebToggle()">🎆 إزالة حفلة نصر سوريا والألعاب النارية</button></div><hr>
+
+<b>🏛️ المعالم</b> <small id="lmState"></small>
 <div><small>«إزالة» تخفي كل المعالم عن الزوار (الجامع الأموي والبيوت والطرق تبقى، وأماكن البيوت لا تتغير). «إرجاع» يعيدها كما كانت بدون أي فقدان. بعد الضغط اضغط 🚀 نشر.</small></div>
-<button id="lmBtn" onclick="lmToggle()">🧹 إزالة كل المعالم</button><hr>
+<div class="bar"><button id="lmBtn" onclick="lmToggle()">🧹 إزالة كل المعالم</button><button class="g" onclick="lmRestoreAll()">↺ إرجاع كل المعالم الفردية</button></div>
+<div style="margin-top:8px"><b>التحكم بكل معلم سوري على حدة (إزالة / إعادة):</b></div>
+<div id="syriaLmList" class="lm-grid"></div><hr>
+
 <b>✈️ الطائرات المدنية</b> <small>طائرة لكل بلد تدور حول حارتها وخلفها شريط يرفرف. اكتب اسم صاحبها بعد أن يحصل عليها فيظهر اسمه على الشريط.</small>
 <div class="w" style="max-height:40vh"><table id="plT"></table></div>
 <button class="g" onclick="plAdd()">＋ طائرة</button><button class="g" onclick="plClear()">حذف كل الطائرات</button><button class="g" onclick="plReset()">↺ الطائرات الست الافتراضية</button><hr>
@@ -266,7 +276,7 @@ async function pub(){try{
  msg('جاري النشر...');
  const c=S.cfg,h=S.hd;c.rev=(c.rev||0)+1;c.total=h.total=S.rows.length;h.rev=c.rev;h.coins=c.coins;h.fv=(h.fv||0)+1;h.houses=S.rows;
  const cs=JSON.stringify(c),hs=JSON.stringify(h);
- const body={'city/config':cs,'city/houses':hs,'city/meta':{rev:c.rev,fv:h.fv,total:h.total,coins:h.coins}};
+ const body={'city/config':cs,'city/houses':hs,'city/meta':{rev:c.rev,fv:h.fv,total:h.total,coins:h.coins,celebrationOff:!!c.celebrationOff,lmOff:!!c.lmOff,hiddenLandmarks:Array.isArray(c.hiddenLandmarks)?c.hiddenLandmarks:[]}};
  if(S.prev){body['backup/config']=S.prev.config;body['backup/houses']=S.prev.houses}
  (S.pk||[]).forEach(k=>{body['pending/'+k]=null});
  await FBA.patch('',body);
@@ -280,11 +290,34 @@ function dl(w){const h=S.hd;h.houses=S.rows;const a=document.createElement('a');
 
 const FT={'':'سوريا',LB:'لبنان',JO:'الأردن',IQ:'العراق',MA:'المغرب',EG:'مصر',PS:'فلسطين',YE:'اليمن',SA:'السعودية'};
 const DEFP=()=>['','LB','JO','IQ','MA','EG'].map((t,i)=>({id:i+1,town:t,owner:'',text:'',active:true}));
+const SYRIA_LMS=[
+ {id:'idlib-clock',name:'ساعة إدلب'},
+ {id:'freedom-clock',name:'ساعة الحرية'},
+ {id:'homs-clock',name:'ساعة حمص'},
+ {id:'aleppo-citadel',name:'قلعة حلب'},
+ {id:'krak-des-chevaliers',name:'قلعة الحصن'},
+ {id:'marqab-castle',name:'قلعة المرقب'},
+ {id:'palmyra',name:'تدمر'},
+ {id:'maarat-hospital',name:'المشفى الوطني - معرة النعمان'}
+];
 function pl(){if(!Array.isArray(S.cfg.planes))S.cfg.planes=DEFP();return S.cfg.planes}
-function fillM(){const off=!!S.cfg.lmOff;$('#lmState').textContent=off?'— المعالم مخفية حالياً':'— المعالم ظاهرة';$('#lmBtn').textContent=off?'🏛️ إرجاع كل المعالم':'🧹 إزالة كل المعالم';$('#lmBtn').className=off?'':'r';
+function hiddenSet(){if(!Array.isArray(S.cfg.hiddenLandmarks))S.cfg.hiddenLandmarks=[];return new Set(S.cfg.hiddenLandmarks)}
+function fillM(){
+ const celebOff=!!S.cfg.celebrationOff;
+ $('#celebState').textContent=celebOff?'— حفلة نصر سوريا والألعاب النارية متوقفة حالياً':'— حفلة نصر سوريا والألعاب النارية شغّالة';
+ $('#celebBtn').textContent=celebOff?'🎉 إعادة حفلة نصر سوريا والألعاب النارية':'🎆 إزالة حفلة نصر سوريا والألعاب النارية';
+ $('#celebBtn').className=celebOff?'ok':'r';
+
+ const off=!!S.cfg.lmOff;$('#lmState').textContent=off?'— كل المعالم مخفية حالياً':'— المعالم ظاهرة';$('#lmBtn').textContent=off?'🏛️ إرجاع كل المعالم':'🧹 إزالة كل المعالم';$('#lmBtn').className=off?'':'r';
+ const hs=hiddenSet();
+ $('#syriaLmList').innerHTML=SYRIA_LMS.map(lm=>{const isOff=hs.has(lm.id);return `<div class="lm-item${isOff?' off':''}"><span><b>${esc(lm.name)}</b><br><small>${isOff?'مُزال حالياً':'ظاهر'}</small></span><button class="${isOff?'ok':'r'}" onclick="lmItemToggle('${esc(lm.id)}')">${isOff?'إعادة':'إزالة'}</button></div>`}).join('');
+
  const P=Array.isArray(S.cfg.planes)?S.cfg.planes:DEFP();
  $('#plT').innerHTML='<tr><th></th><th>البلد</th><th>صاحب الطائرة (@)</th><th>نص الشريط (اختياري)</th><th>فعّالة</th></tr>'+P.map((p,i)=>`<tr><td><button class="r" onclick="plDel(${i})">✕</button></td><td><select onchange="plEdit(${i},'town',this.value)">${Object.entries(FT).map(([k,v])=>`<option value="${k}"${(p.town||'')===k?' selected':''}>${v}</option>`).join('')}</select></td><td><input dir="ltr" value="${esc(p.owner)}" placeholder="فارغ = تنتظر صاحبها" onchange="plEdit(${i},'owner',this.value)"></td><td><input value="${esc(p.text)}" placeholder="الافتراضي: انتظر… من يحصل عليّ ليكون باسمك" onchange="plEdit(${i},'text',this.value)"></td><td><input type="checkbox"${p.active!==false?' checked':''} onchange="plEdit(${i},'active',this.checked)"></td></tr>`).join('')}
+function celebToggle(){S.cfg.celebrationOff=!S.cfg.celebrationOff;S.dirty=true;fillM();msg(S.cfg.celebrationOff?'ستُزال حفلة النصر بعد 🚀 نشر':'ستُعاد حفلة النصر بعد 🚀 نشر')}
 function lmToggle(){S.cfg.lmOff=!S.cfg.lmOff;S.dirty=true;fillM();msg(S.cfg.lmOff?'ستُخفى المعالم بعد 🚀 نشر':'ستعود المعالم بعد 🚀 نشر')}
+function lmItemToggle(id){const s=hiddenSet();if(s.has(id))s.delete(id);else s.add(id);S.cfg.hiddenLandmarks=Array.from(s);S.dirty=true;fillM();msg('تم تحديث حالة المعلم — اضغط 🚀 نشر')}
+function lmRestoreAll(){S.cfg.hiddenLandmarks=[];S.cfg.lmOff=false;S.dirty=true;fillM();msg('تمت إعادة كل المعالم — اضغط 🚀 نشر')}
 function plEdit(i,k,v){const P=pl();if(k==='owner')v=String(v).trim().replace(/^@+/,'').toLowerCase();P[i][k]=v;S.dirty=true;fillM()}
 function plAdd(){const P=pl();P.push({id:Math.max(0,...P.map(p=>p.id||0))+1,town:'',owner:'',text:'',active:true});S.dirty=true;fillM()}
 function plDel(i){pl().splice(i,1);S.dirty=true;fillM()}
