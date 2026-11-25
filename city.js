@@ -4095,13 +4095,16 @@ social.setup({
 });
 
 const breathe = () => new Promise((r) => setTimeout(r, 0)); // lets the phone paint and take taps between two big jobs
+const D = (t) => { try { window.__dbg && window.__dbg(t); } catch (e) {} };
 async function start() {
+  D('start');
   // both asked for at once (index.html has started them already), not one after the other
   const prime = (p) => { p.catch(() => {}); return p; };
   const firstConfig = prime(getConfig()), firstHouses = prime(getHousesData());
   resize();
   await breathe();
   buildPlaza();
+  D('1 plaza built');
   setAccount('...');
   frameCity();
   requestAnimationFrame(tick);
@@ -4114,6 +4117,7 @@ async function start() {
 
   try {
     const cfg = await firstConfig;
+    D('2 config loaded');
     rev = cfg.rev;
     LM_OFF = !!cfg.lmOff;
     $('#account').textContent = '@' + cfg.account;
@@ -4137,24 +4141,29 @@ async function start() {
     // Landmarks first: they decide which blocks the houses skip.
     for (const lm of cfg.landmarks || []) townFor(lm.t).landmarkBlocks.set(lm.block, lm);
     for (const lm of cfg.landmarks || []) buildLandmark(lm);
+    D('3 landmarks built');
     // Empty lots around the tower from day one, waiting for their owners.
     for (let b = 1; b <= 8; b++) ensureBlock(SYRIA, b);
     await breathe();
     // The villages of the neighbouring countries, each round its landmark.
     for (const t of TOWNS) if (t.code) buildTown(t);
+    D('4 towns built');
     await breathe();
     buildSword(); // at the entrance of Damascus, on the road to Amman
     buildRum();   // Jordan's desert, on the road to Egypt
     buildAirports(); // Damascus's and Queen Alia's
     buildBosra(); // the theatre of Bosra, in Damascus next to the mosque
     buildAbdali(); // Abdali Boulevard and the Rotana tower, in Jordan's village
+    D('5 world built');
     await breathe();
     const station = (cfg.landmarks || []).find((lm) => lm.type === 'station');
     if (station && !LM_OFF) buildRailway(station);
     if (titles.plane) buildPlane(titles.plane); // the weekly draw's banner plane, over Damascus
     buildFleet(cfg.planes ?? DEFAULT_PLANES); // a civil plane for each country (admin: cfg.planes)
+    D('6 fleet built');
   } catch (err) {
     console.error(err);
+    D('CAUGHT: ' + (err && (err.stack || err.message) || err));
     toast('تعذّر تحميل المدينة، جرّب تحديث الصفحة');
     $('#loading').hidden = true;
     ready = true;
@@ -4163,6 +4172,7 @@ async function start() {
 
   await breathe();
   await sync(true, firstHouses);
+  D('7 houses loaded');
   setCount();
   await breathe();
   buildHighways();
@@ -4171,6 +4181,7 @@ async function start() {
   placeNextSign();
   frameCity();
   ready = true;
+  D('8 READY');
 
   const wanted = new URLSearchParams(location.search).get('u');
   if (wanted) { $('#q').value = cleanName(wanted); findHouse(wanted); }
