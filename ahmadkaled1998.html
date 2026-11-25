@@ -98,7 +98,9 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <div class="row"><button class="r" onclick="modDo('pub')">مسح الدردشة العامة</button><button class="r" onclick="modDo('dm')">مسح كل الرسائل الخاصة</button><button class="g" onclick="modDo('pl')">إخفاء كل الشخصيات الآن</button></div>
 <div class="row"><input id="mdN" dir="ltr" placeholder="اسم حساب لفك حجزه من جهاز (username)"><button onclick="modDo('claim')">فك حجز الاسم</button></div></div>
 
-<div id="t_i" class="card" style="display:none"><b>الصور</b> <small>هنا تعديل الأسماء المكتوبة تحت الصور فقط. لاستبدال ملف الصورة نفسه ارفعه على GitHub داخل مجلد img/</small><div id="imgs"></div></div>
+<div id="t_i" class="card" style="display:none"><b>الصور</b> <small>هنا تعديل الأسماء المكتوبة تحت الصور فقط. لاستبدال ملف الصورة نفسه ارفعه على GitHub داخل مجلد img/</small><div id="imgs"></div>
+<hr><b>🖼️ صور المعالم السورية</b> <small>ضع أي صورة على أي معلم (قلعة حلب، ساعة إدلب، ساعة الحرية، ساعة حمص، قلعة الحصن، قلعة المرقب، تدمر) مع الاسم المكتوب تحتها. تظهر أمام المعلم بإطار ذهبي بعد 🚀 نشر.</small>
+<div class="row"><select id="pcT"></select><input id="pcF" type="file" accept="image/*"><input id="pcX" placeholder="الاسم تحت الصورة"><button onclick="picAdd()">＋ إضافة الصورة</button></div><div id="picsBox"></div></div>
 
 <div id="t_o" class="card" style="display:none"><b>🛒 الطلبات</b> <small>طلبات المتجر: تحقّق من وصول الدفعة ثم اضغط قبول لتفعيل الطلب فوراً.</small>
 <div class="bar"><select id="ofl" onchange="S.of=this.value;renderO()" style="max-width:160px"><option value="p">قيد المراجعة</option><option value="a">المقبولة</option><option value="r">المرفوضة</option><option value="">الكل</option></select>
@@ -259,7 +261,16 @@ function applyP(){const c=S.cfg;c.coins=+$('#coins').value||0;c.perHouse=+$('#pe
 function newRace(){const c=S.cfg,n=Date.now();c.race={...(c.race||{}),week:(c.race?.week||0)+1,start:n,end:n+6048e5,from:S.rows.length,last:null,podium:null};S.dirty=true;fillP();msg('سباق جديد ✓')}
 function applyCfg(){try{S.cfg=JSON.parse($('#cfgText').value);S.dirty=true;fillP();sum();msg('تم التطبيق ✓')}catch(e){msg('JSON غير صالح: '+e.message)}}
 
-function renderI(){$('#imgs').innerHTML=IMGS.map(n=>`<div class="im"><img src="img/${esc(n)}?_=${Date.now()}"><div>${esc(n)}</div>${DEF[n]?`<input placeholder="${esc(DEF[n])}" title="الاسم تحت الصورة${n=='sarout.jpg'?' (سطران مفصولان بـ |)':''}" value="${esc((S.cfg&&S.cfg.names&&S.cfg.names[n])||'')}" oninput="setName('${esc(n)}',this.value)">`:''}</div>`).join('')}
+
+const PIC_T={aleppo:'قلعة حلب (منطقة حلب)',idlib:'ساعة إدلب',freedom:'ساعة الحرية',homs:'ساعة حمص',krak:'قلعة الحصن',marqab:'قلعة المرقب (بانياس)',palmyra:'تدمر'};
+function picList(){S.cfg.pics=Array.isArray(S.cfg.pics)?S.cfg.pics:[];return S.cfg.pics}
+function picFill(){const o=Object.entries(PIC_T).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');if(!$('#pcT').options.length)$('#pcT').innerHTML=o;
+ $('#picsBox').innerHTML=picList().map((q,i)=>`<div class="im"><img src="${esc(q.img)}"><select onchange="picEdit(${i},'t',this.value)">${Object.entries(PIC_T).map(([k,v])=>`<option value="${k}"${q.t===k?' selected':''}>${esc(v)}</option>`).join('')}</select><input value="${esc(q.text||'')}" placeholder="الاسم تحت الصورة" onchange="picEdit(${i},'text',this.value)"><button class="r" onclick="picDel(${i})">✕ حذف</button></div>`).join('')||'<small>لا توجد صور بعد</small>'}
+function picShrink(file,max=720){return new Promise((ok,no)=>{const r=new FileReader();r.onerror=()=>no(new Error('تعذّر قراءة الملف'));r.onload=()=>{const im=new Image();im.onerror=()=>no(new Error('ليست صورة صالحة'));im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',0.82))};im.src=r.result};r.readAsDataURL(file)})}
+async function picAdd(){const f=$('#pcF').files[0];if(!f)return msg('اختر صورة أولاً');try{const img=await picShrink(f),L=picList();L.push({id:Math.max(0,...L.map(q=>q.id||0))+1,t:$('#pcT').value,img,text:$('#pcX').value.trim()});S.dirty=true;$('#pcF').value='';$('#pcX').value='';picFill();msg('أُضيفت الصورة — اضغط 🚀 نشر لتظهر في المدينة')}catch(e){msg('فشل: '+e.message)}}
+function picEdit(i,k,v){picList()[i][k]=k==='text'?String(v).trim():v;S.dirty=true}
+function picDel(i){picList().splice(i,1);S.dirty=true;picFill()}
+function renderI(){picFill();$('#imgs').innerHTML=IMGS.map(n=>`<div class="im"><img src="img/${esc(n)}?_=${Date.now()}"><div>${esc(n)}</div>${DEF[n]?`<input placeholder="${esc(DEF[n])}" title="الاسم تحت الصورة${n=='sarout.jpg'?' (سطران مفصولان بـ |)':''}" value="${esc((S.cfg&&S.cfg.names&&S.cfg.names[n])||'')}" oninput="setName('${esc(n)}',this.value)">`:''}</div>`).join('')}
 
 async function pub(){try{
  if(!S.cfg||!S.hd)return msg('لم تُحمَّل البيانات بعد');
