@@ -38,7 +38,13 @@ import { createWarJet } from './airbase/warjet.js';
 import { createShop } from './shop.js';
 import { airport as airportModel, airliner, LIVERIES, SIZE as AIR_SIZE, RUNWAY, TAXI, GATES, STAND_Z, GROUND_Y, ROAD as AIR_ROAD, SIGN as AIR_SIGN, FLAG as AIR_FLAG, RADAR, radarMast, radarDish, airportLights, lightSpots, BEACON } from './models/airport.js';
 
-const $ = (s) => document.querySelector(s);
+// نسخة آمنة: إذا العنصر غير موجود بالصفحة نرجّع عنصراً وهمياً بدل null حتى لا يتوقف الملف
+const $ = (s) => {
+  const el = document.querySelector(s);
+  if (el) return el;
+  console.warn('city.js: العنصر غير موجود بالصفحة:', s);
+  return document.createElement('div');
+};
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ------------------------------------------------------------------ layout
@@ -3329,7 +3335,7 @@ window.haretnaCity = {
   back: () => {
     if ($('#shop').classList.contains('show')) closeShop();
     else if ($('#reels').classList.contains('show')) closeReels();
-    else if (document.querySelector('header').classList.contains('finding')) closeFind();
+    else if ($('header').classList.contains('finding')) closeFind();
     else if ($('#card').classList.contains('show')) select(null);
     else if (document.body.classList.contains('how-open')) showHow(false);
     else return false;
@@ -3360,13 +3366,13 @@ function chooseTown(t) {
 for (const b of document.querySelectorAll('#towns [data-town]')) b.addEventListener('click', () => chooseTown(townFor(b.dataset.town)));
 
 $('#findBtn').addEventListener('click', () => {
-  const open = document.querySelector('header').classList.toggle('finding');
+  const open = $('header').classList.toggle('finding');
   $('#findBtn').setAttribute('aria-expanded', String(open));
   if (open) $('#q').focus();
 });
 
 function closeFind() {
-  document.querySelector('header').classList.remove('finding');
+  $('header').classList.remove('finding');
   $('#findBtn').setAttribute('aria-expanded', 'false');
   hideSuggest();
   $('#q').blur();
