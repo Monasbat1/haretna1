@@ -1,9 +1,15 @@
-import { box, cyl, face, square, tree, win } from './kit.js';
+import * as THREE from 'three';
+import { box, cyl, face, tree, win } from './kit.js';
 import { lamp } from './world.js';
+
+function plaza(g, w, d, fill = '#e2dccd', border = '#c7beaa') {
+  box(g, border, 0, 0.08, 0, w, 0.16, d);
+  box(g, fill, 0, 0.22, 0, Math.max(2, w - 1.6), 0.14, Math.max(2, d - 1.6));
+}
 
 export function idlibClock(g) {
   const stone = '#dfd7c4', trim = '#3c4a46', faceBg = '#f7f4eb', handCol = '#1c2024';
-  square(g, 28, 28, '#e2dccd', '#c7beaa');
+  plaza(g, 28, 28, '#e2dccd', '#c7beaa');
 
   box(g, stone, 0, 0.36, 0, 8.2, 1.4, 8.2);
   box(g, trim, 0, 1.76, 0, 6.8, 0.45, 6.8);
@@ -39,7 +45,7 @@ idlibClock.size = [28, 28];
 
 export function freedomClock(g) {
   const stone = '#e6e1d5', accent = '#2e7d4f', dark = '#24292e';
-  square(g, 26, 26, '#e5e0d3', '#c8c0ad');
+  plaza(g, 26, 26, '#e5e0d3', '#c8c0ad');
 
   box(g, stone, 0, 0.36, 0, 7.6, 1.2, 7.6);
   box(g, accent, 0, 1.56, 0, 6.4, 0.4, 6.4);
@@ -69,7 +75,7 @@ freedomClock.size = [26, 26];
 
 export function homsClock(g) {
   const basalt = '#3c3b39', stone = '#d8d0be', faceCol = '#f6f3ea';
-  square(g, 28, 28, '#ddd6c5', '#bfb6a2');
+  plaza(g, 28, 28, '#ddd6c5', '#bfb6a2');
 
   box(g, basalt, 0, 0.36, 0, 8.4, 1.5, 8.4);
   box(g, stone, 0, 1.86, 0, 6.6, 14.5, 6.6);
@@ -99,13 +105,11 @@ homsClock.size = [28, 28];
 
 export function aleppoCitadel(g) {
   const stone = '#cbb997', darkStone = '#a99572';
-  square(g, 64, 64, '#d9cca9', '#b8a57e');
+  plaza(g, 64, 64, '#d9cca9', '#b8a57e');
 
-  // Slope / glacis & main citadel wall
   cyl(g, darkStone, 0, 5.5, 0, 29, 11, 28);
   cyl(g, stone, 0, 13.5, 0, 23.5, 6.5, 28);
 
-  // Towers around the citadel
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     const tx = Math.cos(a) * 22.5;
@@ -113,7 +117,6 @@ export function aleppoCitadel(g) {
     cyl(g, stone, tx, 14.2, tz, 3.4, 8.2, 14);
   }
 
-  // Keep / upper hall
   box(g, stone, 0, 18.8, 0, 15, 4.5, 13);
   box(g, darkStone, 0, 21.3, 0, 16, 0.6, 14);
 
@@ -125,7 +128,7 @@ aleppoCitadel.size = [64, 64];
 
 export function krak(g) {
   const stone = '#c7b89c', shadow = '#9e8e72';
-  square(g, 56, 56, '#d6c8ad', '#b5a384');
+  plaza(g, 56, 56, '#d6c8ad', '#b5a384');
 
   box(g, stone, 0, 5.5, 0, 34, 11, 30);
   box(g, shadow, 0, 12.2, -3, 22, 6.5, 18);
@@ -141,7 +144,7 @@ krak.size = [56, 56];
 
 export function marqab(g) {
   const basalt = '#363432', stone = '#8e8578';
-  square(g, 52, 52, '#cfc6b6', '#ada28f');
+  plaza(g, 52, 52, '#cfc6b6', '#ada28f');
 
   box(g, basalt, 0, 6.5, 0, 32, 13, 28);
   box(g, stone, 2, 14.5, -2, 20, 5.5, 16);
@@ -155,9 +158,8 @@ marqab.size = [52, 52];
 
 export function palmyra(g) {
   const sand = '#e3cfa3', accent = '#caa86e';
-  square(g, 60, 60, '#e8d8b5', '#cbb487');
+  plaza(g, 60, 60, '#e8d8b5', '#cbb487');
 
-  // Temple of Bel podium & colonnade
   box(g, sand, -10, 1.5, -8, 22, 3.0, 16);
   for (let x = -19; x <= -1; x += 3.6) {
     for (const z of [-15, -1]) {
@@ -166,7 +168,6 @@ export function palmyra(g) {
   }
   box(g, accent, -10, 10.3, -8, 22.8, 0.9, 16.8);
 
-  // Colonnade avenue & tetrapylon
   for (let z = -2; z <= 22; z += 4.8) {
     cyl(g, sand, 8, 5.2, z, 0.45, 9.5, 10);
     cyl(g, sand, 15, 5.2, z, 0.45, 9.5, 10);
@@ -184,7 +185,7 @@ palmyra.size = [60, 60];
 
 export function maaratHospital(g) {
   const stone = '#e6dec8', stone2 = '#cfc3a4', trim = '#2f6b5f', glass = '#7fa8bf', dark = '#2b2d33';
-  square(g, 56, 48, '#e3ddd0', '#c7bca2');
+  plaza(g, 56, 48, '#e3ddd0', '#c7bca2');
 
   // المبنى الرئيسي للمشفى الوطني (طابقان رئيسيان + ملحق علوي)
   box(g, stone, -4, 0.36, -5, 28, 4.4, 14);
