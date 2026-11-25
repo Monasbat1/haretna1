@@ -4,10 +4,13 @@
 const DB = 'https://ahmad-662ee-default-rtdb.firebaseio.com';
 const NO_STORE = { cache: 'no-store' };
 
-async function node(path) {
-  const r = await fetch(`${DB}/${path}.json`, NO_STORE);
-  if (!r.ok) throw new Error('db ' + r.status);
-  return r.json();
+async function node(path, ms = 6000) { // a request that hangs is cut after ms, so the static files take over
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(`${DB}/${path}.json`, { ...NO_STORE, signal: ctl.signal });
+    if (!r.ok) throw new Error('db ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
 }
 const parse = (s) => (typeof s === 'string' ? JSON.parse(s) : null);
 
@@ -57,7 +60,7 @@ export async function getHousesData() {
       return unchanged(extra);
     }
     try {
-      const h = parse(await node('city/houses'));
+      const h = parse(await node('city/houses', 25000));
       if (h && Array.isArray(h.houses)) {
         held = h; seen = meta; names = null;
         const extra = await pendingRows(); sentPending = sigOf(extra);
