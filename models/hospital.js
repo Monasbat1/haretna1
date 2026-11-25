@@ -1,6 +1,6 @@
 // «المشفى الوطني» في معرة النعمان (إدلب): مبنى رئيسي وجناحان وبرج بمهبط مروحيات، صليب أحمر، مظلة مدخل، سيارتا إسعاف، أشجار.
 import { box as B, tree as T } from './kit.js';
-
+import { HOSPITAL_ZONE } from './hospital.js';
 export function hospital(g) {
   const b = (c, x, y, z, w, h, d) => B(g, c, x, y, z, w, h, d);
   b('#cfcabb', 0, 0.1, 0, 64, 0.15, 42);                 // ساحة المشفى
