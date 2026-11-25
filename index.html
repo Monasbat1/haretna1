@@ -206,6 +206,13 @@
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
 </head>
 <body>
+<script>
+(function(){var b=document.createElement('pre');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b02a37;color:#fff;font:12px monospace;padding:8px;margin:0;max-height:40vh;overflow:auto;white-space:pre-wrap;direction:ltr;display:none';
+document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(b)});
+function s(t){b.textContent+=t+'\n';b.style.display='block'}
+addEventListener('error',function(e){s('ERR: '+(e.message||'')+' '+((e.target&&(e.target.src||e.target.href))||'')+' '+(e.filename||'')+':'+(e.lineno||''))},true);
+addEventListener('unhandledrejection',function(e){s('PROMISE: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))});})();
+</script>
 <canvas id="city" aria-label="مدينة ثلاثية الأبعاد، كل بيت فيها لمتابع"></canvas>
 
 <header>
