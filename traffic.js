@@ -1,30 +1,30 @@
 // إشارات المرور: كل تقاطع مأهول له إشارتان (4 وجوه) تتناوبان أخضر ← أصفر ← أحمر.
 // السيارات العادية تقف عند الإشارة الحمراء وأمام أي سيارة أو شخص في طريقها،
 // وسيارتك (drive.js) تُسجَّل عليها مخالفة إن قطعت الإشارة الحمراء.
-// الاستخدام من city.js: const traffic = createTraffic({THREE, scene, BW, BD, ROAD, paved});
-//   traffic.update(centerX, centerZ, nowMs)   كل إطار
-//   traffic.state(i, j, axis, nowMs)           'g' | 'y' | 'r'   (axis: 'x' السير على x، 'z' السير على z)
 import * as THREE_MOD from 'three';
 
 export const CYCLE = 24; // ثانية: 10 أخضر (x) + 2 أصفر + 10 أخضر (z) + 2 أصفر
 const GREEN = 10, YELLOW = 2;
-const off = (i, j) => ((i * 7 + j * 13) % 12 + 12) % 12; // كل تقاطع له إزاحة زمنية مختلفة فلا تتزامن كل الإشارات
+const off = (i, j) => ((i * 7 + j * 13) % 12 + 12) % 12;
 
 export function lightState(i, j, axis, nowMs) {
   const t = Number.isFinite(nowMs) ? nowMs : performance.now();
   const p = (((t / 1000 + off(i, j)) % CYCLE) + CYCLE) % CYCLE;
   if (axis === 'x') return p < GREEN ? 'g' : p < GREEN + YELLOW ? 'y' : 'r';
-  const q = (p + GREEN + YELLOW) % CYCLE; // الاتجاه الآخر متأخر نصف دورة
+  const q = (p + GREEN + YELLOW) % CYCLE;
   return q < GREEN ? 'g' : q < GREEN + YELLOW ? 'y' : 'r';
 }
 
 export function createTraffic(opts = {}) {
-  const THREE = opts.THREE || THREE_MOD || globalThis.THREE;
-  const { scene, BW = 40, BD = 40, ROAD = 10 } = opts;
-  const paved = typeof opts.paved === 'function' ? opts.paved : () => 0;
+  const THREE = (opts && opts.THREE) || THREE_MOD || globalThis.THREE;
+  const scene = opts && opts.scene;
+  const BW = (opts && opts.BW) || 40;
+  const BD = (opts && opts.BD) || 40;
+  const ROAD = (opts && opts.ROAD) || 10;
+  const paved = typeof (opts && opts.paved) === 'function' ? opts.paved : () => 0;
 
-  if (!THREE || !THREE.Color || !scene) {
-    console.warn('[traffic.js] THREE أو scene غير متوفر، تم تشغيل وضع آمن بدون تعليق المشهد.');
+  if (!THREE || typeof THREE.Color !== 'function' || !scene) {
+    console.warn('[traffic.js] THREE أو scene غير متوفر، تم تشغيل الوضع الآمن.');
     return {
       state: lightState,
       update() {},
@@ -33,7 +33,7 @@ export function createTraffic(opts = {}) {
     };
   }
 
-  const MAXI = 36, RADIUS = 260; // أقصى عدد تقاطعات مرسومة معاً، ونصف قطر الرسم حول الكاميرا
+  const MAXI = 36, RADIUS = 260;
   const H = ROAD / 2 + 0.9;
   const COL = {
     g: new THREE.Color('#25e06a'),
@@ -60,7 +60,6 @@ export function createTraffic(opts = {}) {
   const s = new THREE.Vector3();
   let shown = [], lastSet = 0, lastColors = 0;
 
-  // التقاطع (i,j) يقع بين البلوكات (i..i+1, j..j+1). مأهول إن كان بجانبه بلوكان معبّدان على الأقل.
   const lived = (i, j) => (paved(i, j) + paved(i + 1, j) + paved(i, j + 1) + paved(i + 1, j + 1)) >= 2;
 
   function chooseCorners(cx, cz) {
@@ -83,11 +82,10 @@ export function createTraffic(opts = {}) {
   function layout() {
     let p = 0, hd = 0, lp = 0;
     for (const c of shown) {
-      for (const sx of [1, -1]) { // عمودان بزاويتين متقابلتين
+      for (const sx of [1, -1]) {
         const x = c.x + sx * H, z = c.z + sx * H;
         poles.setMatrixAt(p++, m4.compose(v.set(x, 2.1, z), q.identity(), s.set(1, 4.2, 1)));
         heads.setMatrixAt(hd++, m4.compose(v.set(x, 4.6, z), q.identity(), s.set(0.8, 2.1, 0.8)));
-        // 12 لمبة: 3 على كل وجه (±x: حالة السير على x، ±z: حالة السير على z)
         for (const face of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           for (let k = 0; k < 3; k++) {
             lamps.setMatrixAt(
@@ -115,7 +113,7 @@ export function createTraffic(opts = {}) {
       const sz = lightState(c.i, c.j, 'z', now);
       for (let n = 0; n < 2; n++) {
         for (const face of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const st = face[0] ? sx : sz; // الوجه الذي يواجه x يخص السير على x
+          const st = face[0] ? sx : sz;
           for (let k = 0; k < 3; k++) {
             const active = (k === 0 && st === 'r') || (k === 1 && st === 'y') || (k === 2 && st === 'g');
             lamps.setColorAt(lp++, active ? COL[st] : COL.off);
@@ -141,7 +139,6 @@ export function createTraffic(opts = {}) {
         recolor(t);
       }
     },
-    // أقرب تقاطع لنقطة، وهل النقطة داخل منطقته
     zoneAt(x, z) {
       const i = Math.round(x / BW - 0.5);
       const j = Math.round(z / BD - 0.5);
