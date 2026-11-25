@@ -30,7 +30,8 @@ import { stadium } from './models/stadium.js';
 import { jeita } from './models/jeita.js';
 import { fence, crossing, FLAGS as CROSSING_FLAGS } from './models/border.js';
 import { hejazStation, viaduct, platform as railPlatform, bufferStop, train as trainModel, RAIL } from './models/railway.js';
-import { TOWN_AT, landPolygon, inside as inPolygon, compactOrder, spiralIndex, SWORD_TILES, SWORD_SCALE } from './models/maps.js';
+import { TOWN_AT, landPolygon, inside as inPolygon, compactOrder, spiralIndex, SWORD_TILES, SWORD_SCALE, AT as MAP_AT, LAND as MAP_LAND } from './models/maps.js';
+import { ZONES as SY_MODELS } from './models/syria.js'; // 2026-11-25: ساعة إدلب والحرية وحمص وقلعة حلب والحصن والمرقب وتدمر، كل واحد بمنطقته
 import * as social from './social.js'; // الدردشة + الشخصية + زر إخفاء الأزرار
 import { createTraffic } from './traffic.js'; // إشارات المرور
 import { createDrive } from './drive.js';     // قيادة السيارة الخاصة
@@ -157,7 +158,22 @@ for (const t of TOWNS) {
   ALIA_ROAD.x0 += X; ALIA_ROAD.z += Z;
   ALIA_ROAD.strip[0] += X; ALIA_ROAD.strip[1] += X; ALIA_ROAD.strip[2] += Z; ALIA_ROAD.strip[3] += Z;
 }
-const RESERVED = [[RUM.x - RUM.w / 2, RUM.x + RUM.w / 2, RUM.z - RUM.d / 2, RUM.z + RUM.d / 2], ...AIRPORTS.map(airRect), ALIA_ROAD.strip]; // Wadi Rum, the airports, Queen Alia's road: x0, x1, z0, z1 (must match server.js)
+// ------------------------------------------------------------------ Syrian zones (2026-11-25)
+// Real Syrian landmarks, each in a zone of its own, placed on Syria's map (models/maps.js:
+// the same outline and scale as Syria's land) so Aleppo's citadel is in the north at Aleppo,
+// the clocks are at Idlib and Homs, and so on. They are off the block grid, like Wadi Rum,
+// far out from the houses (which fill the land nearest the mosque first), and reserved:
+// the houses skip them (RESERVED below; server.js must reserve the same rectangles, see SY_ZONES).
+const synPos = (lon, lat) => { // longitude, latitude -> x, z on the ground, like landPolygon does for Syria's outline
+  const [lon0, lat0] = MAP_AT[''], k = Math.cos((lat0 * Math.PI) / 180), L = MAP_LAND[''];
+  const cx = (TOWN_AT[''][0] + 0.5) * BW, cz = (TOWN_AT[''][1] + 0.5) * BD;
+  return [Math.round(cx + ((lon - lon0) * k - L.at[0]) * L.s), Math.round(cz + (-(lat - lat0) - L.at[1]) * L.s)];
+};
+const SY_ZONES = SY_MODELS.map((m) => {
+  const [x, z] = synPos(m.at[0], m.at[1]), [w, d] = m.model.size;
+  return { ...m, x, z, w: w + 16, d: d + 16, rect: [x - (w + 16) / 2, x + (w + 16) / 2, z - (d + 16) / 2, z + (d + 16) / 2] };
+});
+const RESERVED = [[RUM.x - RUM.w / 2, RUM.x + RUM.w / 2, RUM.z - RUM.d / 2, RUM.z + RUM.d / 2], ...AIRPORTS.map(airRect), ALIA_ROAD.strip, ...SY_ZONES.map((z) => z.rect)]; // Wadi Rum, the airports, Queen Alia's road, the Syrian zones: x0, x1, z0, z1 (must match server.js)
 function inTerritory(town, bx, bz) {
   const t = TERRITORY[town.code];
   if (!t) return true;
@@ -1604,6 +1620,7 @@ function buildHighways() {
   areas.push([BOSRA.x - BOSRA.w / 2, BOSRA.x + BOSRA.w / 2, BOSRA.z - BOSRA.d / 2, BOSRA.z + BOSRA.d / 2]); // Bosra
   areas.push([ABDALI.x - ABDALI.w / 2, ABDALI.x + ABDALI.w / 2, ABDALI.z - ABDALI.d / 2, ABDALI.z + ABDALI.d / 2]); // Abdali
   areas.push(...AIRPORTS.map(airRect)); // the airports
+  areas.push(...SY_ZONES.map((z) => z.rect)); // the Syrian zones
   areas.push(...airRoadAreas);
   areas.push(...noriaAreas);
   layHighwayTraffic(segs);
@@ -2310,6 +2327,82 @@ function buildAirports() {
   }
 }
 let airRoadAreas = [];
+
+// The Syrian zones (see SY_ZONES): each has its ground, its landmark (one baked mesh), the
+// landmark's name and the zone's name over it. Tap one to fly to it.
+function buildSyriaZones(pics) {
+  if (LM_OFF) return;
+  pics = Array.isArray(pics) ? pics : [];
+  for (const Z of SY_ZONES) {
+    const g = new THREE.Group();
+    g.position.set(Z.x, 0.02, Z.z);
+    const ground = new THREE.Mesh(box, lambert(Z.ground));
+    ground.scale.set(Z.w, 0.1, Z.d);
+    ground.position.y = 0.05;
+    ground.receiveShadow = true;
+    g.add(ground);
+    const base = new THREE.Mesh(bake(Z.model), houseMat);
+    base.castShadow = base.receiveShadow = true;
+    g.add(base);
+    const top = Z.model.top;
+    const name = textSprite(null, 640, 112, Math.max(14, Math.min(26, top * 0.7)));
+    pill(name.userData.ctx, 640, 112, Z.place, '#ffffff', '#1d2433', 60, 'rtl');
+    name.userData.tex.needsUpdate = true;
+    name.position.y = top + 4;
+    const zone = textSprite(null, 768, 128, Math.max(18, Math.min(34, top * 0.9)));
+    pill(zone.userData.ctx, 768, 128, Z.zone + ' · سوريا', '#2f7d5b', '#ffffff', 64, 'rtl');
+    zone.userData.tex.needsUpdate = true;
+    zone.position.y = top + 4 + Math.max(14, Math.min(26, top * 0.7)) * 0.3 + 5;
+    g.add(name, zone);
+    const dist = Math.max(Z.w, Z.d) * 0.85;
+    g.userData.entry = {
+      lm: { type: 'syria', name: Z.place + ' · ' + Z.zone }, height: top, x: Z.x, z: Z.z,
+      view: [new THREE.Vector3(Z.x + dist * 0.25, top * 0.9 + 12, Z.z + dist), new THREE.Vector3(Z.x, top * 0.35, Z.z)],
+    };
+    // Pictures the admin put on this landmark (admin panel > الصور > صور المعالم السورية; cfg.pics:
+    // { id, t: zone id, img: data URL, text: caption }): a gold frame on two posts with a green
+    // plaque under it, in front of the landmark, one after another to the right and left.
+    pics.filter((q) => q && q.t === Z.id && typeof q.img === 'string' && q.img.startsWith('data:image/')).forEach((q, i) => {
+      const s = new THREE.Group(), H = 6.8;
+      const x = (i % 2 ? -1 : 1) * (10 + Math.floor(i / 2) * 9), z = Z.model.size[1] / 2 - 4;
+      const c = document.createElement('canvas');
+      c.width = 560; c.height = 560;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#1c2a22'; ctx.fillRect(0, 0, c.width, c.height);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      const pic = new THREE.Mesh(new THREE.PlaneGeometry(H, H), new THREE.MeshBasicMaterial({ map: tex }));
+      const frame = new THREE.Mesh(box, lambert('#d9b44a')), plaque = textBoard(1024, 176, H + 0.6, 1.2);
+      const place = (w) => { // the picture keeps its own proportions
+        pic.geometry.dispose(); pic.geometry = new THREE.PlaneGeometry(w, H);
+        frame.scale.set(w + 0.7, H + 0.7, 0.3);
+        plaque.geometry.dispose(); plaque.geometry = new THREE.PlaneGeometry(Math.max(w + 0.7, 5), 1.2);
+      };
+      const img = new Image();
+      img.onload = () => {
+        const w = Math.max(3.5, Math.min(9, H * img.width / img.height));
+        c.width = Math.round(560 * w / H); c.height = 560;
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        tex.needsUpdate = true;
+        place(w);
+      };
+      img.src = q.img;
+      place(H);
+      frame.position.set(0, 2.4 + H / 2, -0.05);
+      pic.position.set(0, 2.4 + H / 2, 0.12);
+      drawPlaque(plaque.userData.ctx, 1024, 176, q.text || Z.place, { bg: '#0f3d2a', fg: '#f6e7b8', size: 84 });
+      plaque.userData.tex.needsUpdate = true;
+      plaque.position.set(0, 1.7, 0.2);
+      for (const dx of [-1, 1]) { const post = new THREE.Mesh(box, lambert('#5a3620')); post.scale.set(0.3, 2.6, 0.3); post.position.set(dx * (H / 2 - 0.4), 1.3, -0.05); s.add(post); }
+      s.add(frame, pic, plaque);
+      s.position.set(x, 0.1, z);
+      g.add(s);
+    });
+    scene.add(g);
+    landmarkGroups.push(g);
+  }
+}
 
 // «مدرج بصرى» (see BOSRA): the theatre in its citadel and the ruins round it,
 // lit gold at night with torches on the walls and beams sweeping the sky.
@@ -4154,6 +4247,7 @@ async function start() {
     buildAirports(); // Damascus's and Queen Alia's
     buildBosra(); // the theatre of Bosra, in Damascus next to the mosque
     buildAbdali(); // Abdali Boulevard and the Rotana tower, in Jordan's village
+    buildSyriaZones(cfg.pics); // Aleppo citadel, the clocks of Idlib/Freedom/Homs, Krak, Marqab, Palmyra: each in its zone
     D('5 world built');
     await breathe();
     const station = (cfg.landmarks || []).find((lm) => lm.type === 'station');
