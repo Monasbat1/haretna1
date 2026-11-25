@@ -207,11 +207,17 @@
 </head>
 <body>
 <script>
-(function(){var b=document.createElement('pre');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b02a37;color:#fff;font:12px monospace;padding:8px;margin:0;max-height:40vh;overflow:auto;white-space:pre-wrap;direction:ltr;display:none';
-document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(b)});
+(function(){
+var b=document.createElement('pre');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b02a37;color:#fff;font:12px monospace;padding:8px;margin:0;max-height:40vh;overflow:auto;white-space:pre-wrap;direction:ltr;display:none';
+var g=document.createElement('pre');g.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#16202c;color:#9fe8b0;font:12px monospace;padding:6px 8px;margin:0;max-height:34vh;overflow:auto;white-space:pre-wrap;direction:ltr;display:none';
+var log=[];
+document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(b);document.body.appendChild(g)});
 function s(t){b.textContent+=t+'\n';b.style.display='block'}
+window.__dbg=function(t){log.push((performance.now()/1000).toFixed(1)+'s '+t)};
+setTimeout(function(){var l=document.getElementById('loading');if(l&&!l.hidden){g.textContent='STUCK after 9s. Stages reached:\n'+(log.join('\n')||'(none: city.js never started)');g.style.display='block'}},9000);
 addEventListener('error',function(e){s('ERR: '+(e.message||'')+' '+((e.target&&(e.target.src||e.target.href))||'')+' '+(e.filename||'')+':'+(e.lineno||''))},true);
-addEventListener('unhandledrejection',function(e){s('PROMISE: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))});})();
+addEventListener('unhandledrejection',function(e){s('PROMISE: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))});
+})();
 </script>
 <canvas id="city" aria-label="مدينة ثلاثية الأبعاد، كل بيت فيها لمتابع"></canvas>
 
