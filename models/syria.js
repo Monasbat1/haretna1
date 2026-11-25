@@ -4,6 +4,7 @@
 // Each builder has .label (Arabic name), .top (height of the tallest part) and
 // .size [w, d] (what it needs on the ground).
 import { GEO, mat, put, box, cyl, taper, cone, hip, gable, ball, arch, face, RIGHT, LEFT, BACK, shine, tree, ablaq } from './kit.js';
+import { hospital } from './hospital.js';
 
 const CLOCK_GLOW = shine('#f6efd0', 2.6); // clock faces shine at night
 const GOLD = shine('#dab54b', 2.75);
@@ -354,4 +355,5 @@ export const ZONES = [
   { id: 'krak', zone: 'منطقة وادي النصارى', place: 'قلعة الحصن', at: [36.295, 34.757], model: krak, ground: '#a9bf7a' },
   { id: 'marqab', zone: 'منطقة بانياس', place: 'قلعة المرقب', at: [35.95, 35.18], model: marqab, ground: '#a6bd78' },
   { id: 'palmyra', zone: 'منطقة تدمر', place: 'تدمر', at: [38.268, 34.551], model: palmyra, ground: '#e3cf9d' },
+  { id: 'hospital', zone: 'منطقة معرة النعمان', place: 'مشفى معرة النعمان الوطني', at: [36.674, 35.644], model: hospital, ground: '#b8c9a3' },
 ];
