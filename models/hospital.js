@@ -39,4 +39,7 @@ hospital.label = 'المشفى الوطني';
 export const HOSPITAL_ZONE = {
   id: 'hospital', at: [36.674, 35.644], place: 'المشفى الوطني', zone: 'إدلب · معرة النعمان',
   ground: '#b8c9a3', model: hospital, extra: true,
+    { id: 'palmyra', zone: 'منطقة تدمر', place: 'تدمر', at: [38.268, 34.551], model: palmyra, ground: '#e3cf9d' },
+  HOSPITAL_ZONE,
+];
 };
