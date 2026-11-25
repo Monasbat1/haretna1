@@ -2,399 +2,213 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>حارتنا — بيتك هون؟</title>
-<meta name="description" content="حارتنا: مدينة ثلاثية الأبعاد، كل متابع إله فيها بيت. تابع وعلّق لينبنى بيتك.">
-<meta property="og:title" content="حارتنا — بيتك هون؟">
-<meta property="og:description" content="كل متابع إله بيت بحارتنا. تابع وعلّق لينبنى بيتك 🏠">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#bfe6ff">
+<title>حارتنا</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --ink: #1d2433; --muted: #5d6678; --panel: rgba(255,255,255,.9);
-    --accent: #e1306c; --accent-2: #f77737; --radius: 18px;
-    --shadow: 0 8px 28px rgba(30,50,90,.16);
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #bfe6ff; }
-  body { font-family: 'Tajawal', system-ui, 'Segoe UI', Tahoma, sans-serif; color: var(--ink); }
-  canvas#city { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-
-  .loading { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); margin: 0; padding: 12px 22px;
-             font-weight: 800; white-space: nowrap; z-index: 4; pointer-events: none; }
-  .loading[hidden] { display: none; }
-  .panel { background: var(--panel); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-           border-radius: var(--radius); box-shadow: var(--shadow); }
-
-  header { position: fixed; top: 12px; inset-inline: 12px; display: flex; gap: 10px; align-items: stretch;
-           flex-wrap: wrap; pointer-events: none; z-index: 6; }
-  header > * { pointer-events: auto; }
-  .brand { padding: 10px 16px; display: flex; flex-direction: column; justify-content: center; }
-  .brand h1 { margin: 0; font-size: 19px; font-weight: 800; line-height: 1.2; }
-  .brand a { color: var(--accent); font-weight: 700; font-size: 14px; text-decoration: none; direction: ltr; text-align: right; }
-  .count { padding: 10px 16px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
-  .count b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  form.search { flex: 1 1 260px; max-width: 420px; margin-inline-start: auto; display: flex; padding: 6px; gap: 6px; position: relative; }
-  .suggest { position: absolute; top: calc(100% + 6px); inset-inline: 0; margin: 0; padding: 6px; list-style: none; z-index: 5;
-             max-height: min(360px, 55vh); overflow: auto; background: rgba(255,255,255,.97); }
-  .suggest li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; cursor: pointer; }
-  .suggest li:hover, .suggest li.on { background: #f1f3f8; }
-  .suggest .who { flex: 1; min-width: 0; direction: ltr; text-align: right; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .suggest .who b { font-weight: 800; color: var(--accent); }
-  .suggest .flag { width: 22px; height: 16px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(0,0,0,.08); flex: none; }
-  .suggest small { color: var(--muted); font-size: 12px; flex: none; }
-  .suggest li.none { cursor: default; color: var(--muted); justify-content: center; }
-  .suggest li.none:hover { background: none; }  form.search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 16px;
-                      padding: 8px 12px; color: var(--ink); outline: none; direction: ltr; text-align: right; }
-  form.search input::placeholder { direction: rtl; color: #8a93a4; }
-  button, .btn { font: inherit; font-weight: 700; border: 0; cursor: pointer; border-radius: 13px; padding: 9px 16px;
-                 color: #fff; background: linear-gradient(135deg, var(--accent-2), var(--accent)); text-decoration: none;
-                 display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
-  button:focus-visible, .btn:focus-visible, input:focus-visible { outline: 3px solid rgba(225,48,108,.35); outline-offset: 2px; }
-  .btn.ghost { background: #eef1f6; color: var(--ink); }
-
-  .how { position: fixed; bottom: 14px; inset-inline-start: 12px; width: min(300px, calc(100vw - 24px)); padding: 14px 16px; }
-  .how h2 { margin: 0 0 8px; font-size: 16px; font-weight: 800; }
-  .how ol { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 7px; }
-  .how li { counter-increment: s; display: flex; gap: 9px; align-items: center; font-size: 15px; font-weight: 500; }
-  .how li::before { content: counter(s); flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
-                    font-size: 13px; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--accent-2), var(--accent)); }
-
-  .how .tip { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--accent); }
-  .how .owner { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
-  .how .owner a { color: inherit; }
-  .how .privacy { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 500; color: var(--muted); }
-
-  .card { position: fixed; bottom: 14px; inset-inline-end: 12px; width: min(300px, calc(100vw - 24px)); padding: 16px;
-          transform: translateY(16px); opacity: 0; pointer-events: none; transition: .25s ease; }
-  .card.show { transform: none; opacity: 1; pointer-events: auto; }
-  .card .name { font-size: 20px; font-weight: 800; direction: ltr; text-align: right; overflow-wrap: anywhere; padding-left: 34px; }
-  .card .meta { color: var(--muted); font-size: 14px; margin: 2px 0 12px; display: flex; align-items: center; gap: 8px; }
-  .card .flag { width: 30px; height: 22px; border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.08); object-fit: cover; flex: none; }
-  .card .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .card .row > * { flex: 1; }
-  .card .close { position: absolute; top: 8px; left: 8px; width: 30px; height: 30px; padding: 0; border-radius: 50%;
-                 background: #eef1f6; color: var(--muted); font-size: 16px; }
-  .card .btn.heart { background: linear-gradient(135deg, #ff5a7a, #d3123a); }
-  .tourbar { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px 10px 16px; font-weight: 800; font-size: 15px; max-width: calc(100vw - 32px); }
-  .tourbar[hidden] { display: none; }
-  .tourbar .btn { flex: none; padding: 8px 12px; }
-  body.touring #nav, body.touring header, body.touring .toasts { visibility: hidden; }
-  .card .btn.heart.given { background: #fde8ec; color: #c8102e; }
-  .card .btn.heart.pop { animation: heartPop .45s ease; }
-  @keyframes heartPop { 40% { transform: scale(1.12); } }
-
-  [hidden] { display: none !important; }
-  .reels-btn { padding: 0 16px; font-size: 16px; }
-
-  button.coins { color: var(--ink); background: var(--panel); border-radius: var(--radius); }
-  .coins .lbl { font-size: 13px; font-weight: 500; color: var(--muted); }
-
-  .nav { position: fixed; inset-inline-end: 12px; top: 50%; transform: translateY(-50%); padding: 6px; display: grid; gap: 4px; }
-  .nav button { width: 42px; height: 42px; padding: 0; border-radius: 12px; background: #eef1f6; color: var(--ink);
-                font-size: 24px; line-height: 1; touch-action: none; user-select: none; -webkit-user-select: none; }
-  .nav button:active { background: #dde3ee; }
-  .nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-  @media (max-height: 560px) { .nav [data-act^="rot"] { display: none; } }
-
-  .modal .sheet.shop { width: min(460px, 100%); overflow: auto; }
-  .modal h3 { margin: 6px 0 0; font-size: 16px; font-weight: 800; }
-  .support-cta { display: block; text-align: center; padding: 12px 16px; border-radius: 14px; font-weight: 800; text-decoration: none; color: #fff; background: linear-gradient(135deg, var(--accent-2), var(--accent)); }
-  .support-cta[hidden] { display: none; }
-  .adbar { position: fixed; left: 8px; bottom: 8px; z-index: 5; max-width: min(300px, 70vw); display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 14px; background: rgba(255,255,255,.94); box-shadow: 0 2px 10px rgba(0,0,0,.22); font-size: 13px; }
-  .adbar[hidden] { display: none; }
-  .adbar a { display: flex; align-items: center; gap: 8px; color: #1d2433; text-decoration: none; min-width: 0; }
-  .adbar img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; flex: none; }
-  .adbar img[hidden] { display: none; }
-  .adbar button { border: 0; background: none; font-size: 14px; padding: 2px 4px; cursor: pointer; color: #66708a; }
-  .shop p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
-  .shop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  .shop li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: #f4f6fa; }
-  .shop .icon { font-size: 24px; flex: none; }
-  .shop .grow { flex: 1; min-width: 0; display: grid; gap: 3px; }
-  .shop small { color: var(--muted); font-size: 13px; }
-  .shop small.ready { color: #1f8a4c; font-weight: 700; }
-  .shop .bar { height: 6px; border-radius: 3px; background: #e1e6ee; overflow: hidden; }
-  .shop .bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(135deg, var(--accent-2), var(--accent)); }
-  .shop .price { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
-
-  /* لوحة الإدارة الخاصة بالمعالم وحفلة النصر (مخفية افتراضياً وتظهر للإدارة فقط) */
-  .admin-panel { position: fixed; top: 132px; inset-inline-end: 12px; width: min(290px, calc(100vw - 24px));
-                 max-height: calc(100vh - 160px); overflow: auto; padding: 14px; z-index: 20; }
-  .admin-panel h3 { margin: 0 0 10px; font-size: 15px; font-weight: 800; }
-  #admin-controls button { width: 100%; justify-content: flex-start; text-align: right; background: #f3f5fa; color: var(--ink); font-size: 13px; padding: 8px 12px; }
-  #admin-controls button:first-child { background: linear-gradient(135deg, #2e7d4f, #1b5e37); color: #fff; }
-
-  .modal { position: fixed; inset: 0; background: rgba(20,26,40,.62); display: none; align-items: center; justify-content: center;
-           padding: 12px; z-index: 10; }
-  .modal.show { display: flex; }
-  .modal .sheet { width: min(1040px, 100%); max-height: 100%; padding: 16px; display: flex; flex-direction: column; gap: 12px;
-                  background: #fff; position: relative; }
-  .modal h2 { margin: 0; font-size: 20px; font-weight: 800; }
-  .modal .close { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; padding: 0; border-radius: 50%;
-                  background: #eef1f6; color: var(--muted); font-size: 17px; }
-  .reels-row { display: flex; justify-content: safe center; gap: 14px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
-  .reels-row figure { margin: 0; flex: none; width: min(328px, 82vw); scroll-snap-align: center; }
-  .reels-row iframe { width: 100%; height: min(600px, 68vh); border: 0; border-radius: 14px; background: #f1f3f7; display: block; }
-  .reels-row figcaption { font-weight: 700; font-size: 15px; padding: 8px 4px 0; text-align: center; }
-
-  .towns-row { flex-basis: 100%; min-width: 0; display: flex; justify-content: center; pointer-events: none; }
-  .towns { pointer-events: auto; display: flex; gap: 4px; padding: 5px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-  .towns::-webkit-scrollbar { display: none; }
-  .towns button { flex: none; gap: 7px; padding: 6px 11px; border-radius: 13px; background: transparent; color: var(--ink); font-size: 14px; }
-  .towns button:hover { background: #eef1f6; }
-  .towns img { width: 22px; height: 16px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(0,0,0,.1); }
-  .towns b { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .towns button.on { background: #fff; box-shadow: inset 0 0 0 2px var(--accent); }
-
-  /* the phone's own buttons (see the max-width: 640px block) */
-  .find-btn, .how-btn, .how .close, .how-coins { display: none; }
-
-  .toasts { position: fixed; top: 136px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; justify-items: center;
-            pointer-events: none; width: max-content; max-width: calc(100vw - 24px); }
-  .toast { padding: 10px 16px; font-weight: 700; font-size: 15px; animation: pop .3s ease; text-align: center; }
-  .toast.out { opacity: 0; transform: translateY(-8px); transition: .3s ease; }
-  @keyframes pop { from { opacity: 0; transform: translateY(-10px) scale(.96); } }
-
-  /* The phone: one slim row (name, houses, the draw, 🔍), then every country's
-     flag in one row, and the city free under them. Search opens from 🔍, the
-     "how to get a house" box from a small button, and the map's own buttons
-     go (one finger moves the city, two zoom and turn it) except 🕌 and 🌙. */
-  @media (max-width: 640px) {
-    header { top: calc(8px + env(safe-area-inset-top)); inset-inline: 8px; gap: 6px; flex-wrap: wrap; }
-    .brand { padding: 5px 10px; }
-    .brand h1 { font-size: 15px; }
-    .brand a { font-size: 11px; }
-    .count { padding: 5px 10px; gap: 5px; font-size: 13px; }
-    .count b { font-size: 16px; }
-    #coinsBtn { display: none; }
-    #drawBtn { padding: 0 12px; font-size: 14px; border-radius: 14px; }
-    .find-btn { display: inline-flex; margin-inline-start: auto; width: 44px; padding: 0; font-size: 19px; color: var(--ink); border-radius: 14px; }
-    .find-btn[aria-expanded="true"] { box-shadow: inset 0 0 0 2px var(--accent), var(--shadow); }
-    form.search { display: none; order: 5; flex: 1 1 100%; max-width: none; margin: 0; }
-    header.finding form.search { display: flex; }
-    header.finding .towns-row { display: none; } /* the names it finds drop down where the flags are */
-    .towns-row { order: 6; }
-    .towns { width: 100%; display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px; padding: 4px; overflow: visible; }
-    .towns button { flex-direction: column; gap: 1px; padding: 5px 0 4px; border-radius: 11px; font-size: 9px; letter-spacing: -0.3px; line-height: 1.15; min-width: 0; }
-    .towns button .long { font-size: 8px; letter-spacing: -0.5px; } /* the longest name, so it fits a phone */
-    .towns img { width: 28px; height: 21px; margin-bottom: 2px; }
-    .towns span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-    .towns b { font-size: 10px; }
-    .toasts { top: 150px; }
-    .nav { top: auto; transform: none; bottom: calc(12px + env(safe-area-inset-bottom)); inset-inline-end: 8px; padding: 4px; }
-    .nav [data-act] { display: none; }
-    .nav button { width: 40px; height: 40px; font-size: 21px; }
-    body.has-card .nav { display: none; }
-    .how-btn { display: inline-flex; position: fixed; bottom: calc(12px + env(safe-area-inset-bottom)); inset-inline-start: 8px;
-               padding: 10px 14px; font-size: 14px; color: var(--ink); border-radius: 16px; }
-    .how { display: none; bottom: calc(12px + env(safe-area-inset-bottom)); inset-inline-start: 8px; width: calc(100vw - 16px); padding: 12px 14px; z-index: 7; }
-    body.how-open .how { display: block; }
-    body.how-open .how-btn, body.how-open .nav { display: none; }
-    .how .close { display: grid; place-items: center; position: absolute; top: 8px; left: 8px; width: 30px; height: 30px; padding: 0;
-                  border-radius: 50%; background: #eef1f6; color: var(--muted); font-size: 15px; }
-    .how-coins { display: inline-flex; margin-top: 10px; margin-inline-end: 8px; padding: 6px 12px; font-size: 13px; }
-    .how h2 { font-size: 15px; margin-bottom: 6px; }
-    .how li { font-size: 14px; }
-    .how .tip { font-size: 13px; }
-    body.has-card .how, body.has-card .how-btn { display: none; }
-  }
-  @media (prefers-reduced-motion: reduce) { .card, .toast { transition: none; animation: none; } }
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
 <script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
 </script>
-<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
 </head>
 <body>
-<script>
-(function(){
-var b=document.createElement('pre');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b02a37;color:#fff;font:12px monospace;padding:8px;margin:0;max-height:40vh;overflow:auto;white-space:pre-wrap;direction:ltr;display:none';
-var g=document.createElement('pre');g.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#16202c;color:#9fe8b0;font:12px monospace;padding:6px 8px;margin:0;max-height:34vh;overflow:auto;white-space:pre-wrap;direction:ltr;display:none';
-var log=[];
-document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(b);document.body.appendChild(g)});
-function s(t){b.textContent+=t+'\n';b.style.display='block'}
-window.__dbg=function(t){log.push((performance.now()/1000).toFixed(1)+'s '+t)};
-setTimeout(function(){var l=document.getElementById('loading');if(l&&!l.hidden){g.textContent='STUCK after 9s. Stages reached:\n'+(log.join('\n')||'(none: city.js never started)');g.style.display='block'}},9000);
-addEventListener('error',function(e){s('ERR: '+(e.message||'')+' '+((e.target&&(e.target.src||e.target.href))||'')+' '+(e.filename||'')+':'+(e.lineno||''))},true);
-addEventListener('unhandledrejection',function(e){s('PROMISE: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))});
-})();
-</script>
-<canvas id="city" aria-label="مدينة ثلاثية الأبعاد، كل بيت فيها لمتابع"></canvas>
+<canvas id="city"></canvas>
 
 <header>
   <div class="panel brand">
-    <h1>حارتنا</h1>
-    <a id="account" target="_blank" rel="noopener">@</a>
+    <span>حارتنا</span>
+    <span class="count"><b id="count">0</b> بيت</span>
   </div>
-  <div class="panel count" aria-live="polite">🏠 <b id="count">…</b> بيت</div>
-  <button class="panel count coins" id="coinsBtn" type="button" aria-label="رصيد المدينة">🪙 <b id="coins">0</b> <span class="lbl">رصيد المدينة</span></button>
-  <button class="reels-btn" id="reelsBtn" type="button" hidden>🎬 ريلز</button>
-  <button class="reels-btn" id="drawBtn" type="button">🛍️ تسوق</button>
-  <button class="reels-btn" id="supportBtn" type="button" hidden>🤝 ادعم المدينة</button>
-  <button class="panel find-btn" id="findBtn" type="button" aria-label="وين بيتي؟ ابحث باسم حسابك" aria-expanded="false" aria-controls="search">🔍</button>
-  <form class="panel search" id="search" autocomplete="off">
-    <input id="q" type="text" inputmode="latin" autocapitalize="none" spellcheck="false"
-           placeholder="اكتب اسم حسابك" aria-label="اسم حسابك على انستقرام"
-           role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest">
-    <button type="submit">وين بيتي؟</button>
-    <ul class="panel suggest" id="suggest" role="listbox" aria-label="بيوت بهالاسم" hidden></ul>
+  <button id="findBtn" class="panel iconBtn findToggle" type="button" aria-label="ابحث عن بيت" aria-expanded="false">🔍</button>
+  <form id="search" class="panel search" autocomplete="off">
+    <input id="q" type="search" placeholder="ابحث باسم حسابك…" aria-label="ابحث باسم حسابك" aria-autocomplete="list" aria-controls="suggest" aria-expanded="false">
+    <button type="submit">ابحث</button>
+    <ul id="suggest" class="panel suggest" role="listbox" hidden></ul>
   </form>
-  <div class="towns-row">
-    <nav class="panel towns" id="towns" aria-label="حارات الدول">
-      <button type="button" data-town=""><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/sy.svg" alt=""><span>سوريا</span> <b>0</b></button>
-      <button type="button" data-town="JO"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/jo.svg" alt=""><span>الأردن</span> <b>0</b></button>
-      <button type="button" data-town="PS"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/ps.svg" alt=""><span>فلسطين</span> <b>0</b></button>
-      <button type="button" data-town="LB"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/lb.svg" alt=""><span>لبنان</span> <b>0</b></button>
-      <button type="button" data-town="IQ"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/iq.svg" alt=""><span>العراق</span> <b>0</b></button>
-      <button type="button" data-town="MA"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/ma.svg" alt=""><span>المغرب</span> <b>0</b></button>
-      <button type="button" data-town="EG"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/eg.svg" alt=""><span>مصر</span> <b>0</b></button>
-      <button type="button" data-town="YE"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/ye.svg" alt=""><span>اليمن</span> <b>0</b></button>
-      <button type="button" data-town="SA"><img src="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/flags/4x3/sa.svg" alt=""><span class="long">السعودية</span> <b>0</b></button>
-    </nav>
+  <div class="panel stats">
+    <button id="appBtn" class="appBtn" type="button" title="التطبيق والسباق">📱 التطبيق</button>
+    <button id="coinsBtn" class="coinsBtn" type="button" title="رصيد المدينة والمعالم">🪙 <b id="coins">0</b></button>
+    <button id="reelsBtn" class="reelsBtn" type="button" title="الريلز">🎬</button>
+    <button id="supportBtn" class="supportBtn" type="button" title="ادعم المدينة أو أعلن">💎</button>
+    <button id="howBtn" class="howBtn" type="button" aria-label="كيف تبني بيتك؟" aria-expanded="false">؟</button>
+    <button id="skyBtn" class="skyBtn" type="button" aria-label="الليل" title="الليل">🌙</button>
   </div>
 </header>
 
-<!-- لوحة الإدارة فقط: إزالة وإعادة حفلة نصر سوريا وكل معلم على حدة -->
-<aside class="panel admin-panel" id="admin-panel" data-role="admin-panel" aria-label="لوحة الإدارة" hidden>
-  <button class="close" id="adminClose" type="button" aria-label="إغلاق لوحة الإدارة">✕</button>
-  <h3>🛠️ لوحة الإدارة — المعالم وحفلة النصر</h3>
-  <div id="admin-controls"></div>
-</aside>
-
-<button class="panel how-btn" id="howBtn" type="button" aria-expanded="false" aria-controls="how">🏠 بدك بيت؟</button>
-<section class="panel how" id="how">
-  <button class="close" id="howClose" type="button" aria-label="إغلاق">✕</button>
-  <h2>بدك بيت بحارتنا؟</h2>
-  <ol>
-    <li>تابع الحساب على انستقرام</li>
-    <li>علّق على آخر منشور</li>
-    <li>بيتك بينبنى لحاله 🏠</li>
-  </ol>
-  <p class="tip">🚩 اكتب اسم بلدك بالتعليق ليرتفع علمك فوق بيتك، ومن الأردن وفلسطين ولبنان والعراق والمغرب ومصر واليمن والسعودية بيتك بينبنى بحارة بلدك</p>
-  <button class="btn ghost how-coins" id="howCoins" type="button">🪙 رصيد المدينة</button>
-  <a class="privacy" href="privacy.html">سياسة الخصوصية</a>
-  <p class="owner">حارتنا من <a href="https://moutazalbardan.com" rel="noopener"><bdi dir="ltr">Albardan Digital</bdi></a></p>
-</section>
-
-<aside class="panel card" id="card" aria-live="polite">
-  <button class="close" id="cardClose" aria-label="إغلاق">✕</button>
-  <div class="name" id="cardName"></div>
-  <div class="meta"><img class="flag" id="cardFlag" alt="" hidden><span id="cardMeta"></span></div>
-  <div class="row">
-    <a class="btn" id="cardProfile" target="_blank" rel="noopener">الحساب</a>
-    <button class="btn ghost" id="cardShare" type="button">نسخ رابط البيت</button>
-    <button class="btn" id="cardReels" type="button" hidden>🎬 شاهد الريلز</button>
-    <button class="btn heart" id="cardHeart" type="button" hidden>❤️ حط قلب حب</button>
-    <button class="btn" id="cardTour" type="button" hidden>🚤 جولة داخل المغارة</button>
-    <button class="btn" id="cardEnter" type="button" hidden>🚪 دخول البيت</button>
-  </div>
-</aside>
-
-<div class="panel tourbar" id="tourBar" hidden>
-  <span id="tourText">🚤 جولة بمغارة جعيتا</span>
-  <button class="btn ghost" id="tourEnd" type="button">✕ إنهاء</button>
+<div id="adBar" class="panel adBar" hidden>
+  <img id="adImg" alt="" hidden>
+  <span id="adText"></span>
+  <a id="adLink" target="_blank" rel="noopener">افتح</a>
+  <button id="adClose" type="button" aria-label="إغلاق الإعلان">✕</button>
 </div>
 
-<div class="modal" id="reels" role="dialog" aria-modal="true" aria-labelledby="reelsTitle">
-  <div class="panel sheet">
-    <button class="close" id="reelsClose" aria-label="إغلاق">✕</button>
-    <h2 id="reelsTitle">🎬 ريلز حارتنا</h2>
-    <div class="reels-row" id="reelsRow"></div>
-  </div>
-</div>
-
-<nav class="panel nav" id="nav" aria-label="التنقل بالمدينة">
-  <button type="button" data-act="in" aria-label="تقريب" title="تقريب">+</button>
-  <button type="button" data-act="out" aria-label="تبعيد" title="تبعيد">−</button>
-  <button type="button" data-act="rotL" aria-label="دوران لليسار" title="دوران">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-  </button>
-  <button type="button" data-act="rotR" aria-label="دوران لليمين" title="دوران">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-  </button>
-  <button type="button" id="navHome" aria-label="كل الدول" title="كل الدول">🗺️</button>
-  <button type="button" id="modeBtn" aria-label="ليل أو نهار" aria-pressed="false" title="ليل">🌙</button>
+<nav id="towns" class="panel towns" aria-label="البلدان">
+  <button type="button" data-town="">🇸🇾 سوريا <b>0</b></button>
+  <button type="button" data-town="JO">🇯🇴 الأردن <b>0</b></button>
+  <button type="button" data-town="PS">🇵🇸 فلسطين <b>0</b></button>
+  <button type="button" data-town="LB">🇱🇧 لبنان <b>0</b></button>
+  <button type="button" data-town="IQ">🇮🇶 العراق <b>0</b></button>
+  <button type="button" data-town="MA">🇲🇦 المغرب <b>0</b></button>
+  <button type="button" data-town="EG">🇪🇬 مصر <b>0</b></button>
+  <button type="button" data-town="YE">🇾🇪 اليمن <b>0</b></button>
+  <button type="button" data-town="SA">🇸🇦 السعودية <b>0</b></button>
 </nav>
 
-<div class="modal" id="shop" role="dialog" aria-modal="true" aria-labelledby="shopTitle">
-  <div class="panel sheet shop">
-    <button class="close" id="shopClose" aria-label="إغلاق">✕</button>
-    <h2 id="shopTitle">🪙 رصيد المدينة: <span id="shopCoins">0</span></h2>
-    <p id="shopRule"></p>
-    <ul id="shopList"></ul>
+<aside id="card" class="panel card" aria-live="polite">
+  <button id="cardClose" class="close" type="button" aria-label="إغلاق">✕</button>
+  <img id="cardFlag" class="cardFlag" alt="" hidden>
+  <h2 id="cardName"></h2>
+  <p id="cardMeta"></p>
+  <div class="cardActions">
+    <button id="cardHeart" class="btn heartBtn" type="button" hidden>❤️ حط قلب حب</button>
+    <button id="cardTour" class="btn primary" type="button" hidden>🚤 جولة بالقارب</button>
+    <button id="cardEnter" class="btn primary" type="button" hidden>🚪 دخول البيت</button>
+    <a id="cardProfile" class="btn primary" target="_blank" rel="noopener">حساب إنستغرام</a>
+    <button id="cardShare" class="btn" type="button">انسخ الرابط</button>
+    <button id="cardReels" class="btn" type="button" hidden>شاهد الريلز</button>
+  </div>
+</aside>
+
+<div id="tourBar" class="panel tourBar" hidden>
+  <span id="tourText">🚤 جولة بالقارب جوا المغارة</span>
+  <button id="tourEnd" class="btn" type="button">انهِ الجولة</button>
+</div>
+
+<div id="walkBar" class="panel walkBar" role="region" aria-label="المشي في الحارة">
+  <span>🚶 عم تمشي بالحارة</span>
+  <button id="walkExit" class="btn" type="button">اخرج</button>
+</div>
+
+<div id="walkPad" class="walkPad" aria-label="أزرار المشي">
+  <button type="button" class="panel wUp" data-w="KeyW" aria-label="للأمام">▲</button>
+  <button type="button" class="panel wLeft" data-w="KeyA" aria-label="يسار">◀</button>
+  <button type="button" class="panel wRight" data-w="KeyD" aria-label="يمين">▶</button>
+  <button type="button" class="panel wDown" data-w="KeyS" aria-label="للخلف">▼</button>
+</div>
+
+<div id="nav" class="nav" aria-label="التنقل">
+  <div class="navRing">
+    <button type="button" class="panel nN" data-act="fwd" aria-label="للأمام">▲</button>
+    <button type="button" class="panel nS" data-act="back" aria-label="للخلف">▼</button>
+    <button type="button" class="panel nW" data-act="left" aria-label="يسار">◀</button>
+    <button type="button" class="panel nE" data-act="right" aria-label="يمين">▶</button>
+    <button type="button" class="panel nC" id="navHome" aria-label="الوسط">●</button>
+  </div>
+  <div class="navZoom">
+    <button type="button" class="panel" data-act="in" aria-label="تقريب">+</button>
+    <button type="button" class="panel" data-act="out" aria-label="إبعاد">−</button>
+    <button type="button" class="panel nRot" data-act="rotL" aria-label="لف يسار">↺</button>
+    <button type="button" class="panel nRot" data-act="rotR" aria-label="لف يمين">↻</button>
+    <button type="button" class="panel nWalk" id="walkBtn" aria-label="امشِ بالحارة" aria-pressed="false" title="امشِ بالحارة">🚶</button>
   </div>
 </div>
 
-<div class="modal" id="support" role="dialog" aria-modal="true" aria-labelledby="supportTitle">
-  <div class="panel sheet shop">
-    <button class="close" id="supportClose" aria-label="إغلاق">✕</button>
-    <h2 id="supportTitle">🤝 ادعم المدينة</h2>
-    <p id="supportIntro"></p>
-    <ul id="supportPrices"></ul>
-    <a class="support-cta" id="supportContact" target="_blank" rel="noopener noreferrer" hidden>💬 راسلنا على إنستغرام</a>
-    <h3 id="sponsorsHead" hidden>🌟 رعاة المدينة</h3>
-    <ul id="sponsorList"></ul>
+<aside id="how" class="panel how" aria-labelledby="howTitle">
+  <button id="howClose" class="close" type="button" aria-label="إغلاق">✕</button>
+  <h2 id="howTitle">كيف يطلع لك بيت بحارتنا؟</h2>
+  <ol>
+    <li>تابع الحساب على إنستغرام.</li>
+    <li>علّق بكلمة <b>«بيت»</b> على آخر منشور (أو اكتب بلدك مثل <b>«الأردن»</b>، <b>«فلسطين»</b>، <b>«لبنان»</b>، <b>«العراق»</b>، <b>«المغرب»</b>، <b>«مصر»</b>، <b>«اليمن»</b>، <b>«السعودية»</b> لتبني بحارتها).</li>
+    <li>ارجع لهون وابحث باسمك — بيتك ينبني لحاله، ومع كل منشور جديد يطلع لك طابق!</li>
+  </ol>
+  <p class="howFoot">كل بيت جديد يرفع <button id="howCoins" class="linkBtn" type="button">رصيد المدينة</button> لبناء معالم جديدة.</p>
+</aside>
+
+<div id="reels" class="reels" role="dialog" aria-modal="true" aria-label="الريلز">
+  <div class="panel reelsBox">
+    <div class="reelsHead">
+      <h2>🎬 ريلز حارتنا</h2>
+      <button id="reelsClose" class="close" type="button" aria-label="إغلاق">✕</button>
+    </div>
+    <div id="reelsRow" class="reelsRow"></div>
   </div>
 </div>
-<div class="adbar" id="adBar" hidden><a id="adLink" target="_blank" rel="noopener noreferrer"><img id="adImg" alt="" hidden><span id="adText"></span></a><button id="adClose" type="button" aria-label="إغلاق الإعلان">✕</button></div>
 
-<p class="panel loading" id="loading" role="status">🏗️ عم نجهّز المدينة…</p>
-<div class="toasts" id="toasts"></div>
+<div id="shop" class="reels" role="dialog" aria-modal="true" aria-label="رصيد المدينة والمعالم">
+  <div class="panel reelsBox shopBox">
+    <div class="reelsHead">
+      <h2>🪙 رصيد المدينة: <b id="shopCoins">0</b></h2>
+      <button id="shopClose" class="close" type="button" aria-label="إغلاق">✕</button>
+    </div>
+    <p id="shopRule" class="shopRule"></p>
+    <ul id="shopList" class="shopList"></ul>
+  </div>
+</div>
 
-<script type="module" src="app.js"></script>
-<script type="module" src="city.js"></script>
+<div id="support" class="reels" role="dialog" aria-modal="true" aria-label="ادعم المدينة أو أعلن">
+  <div class="panel reelsBox shopBox">
+    <div class="reelsHead">
+      <h2>💎 ادعم المدينة أو أعلن</h2>
+      <button id="supportClose" class="close" type="button" aria-label="إغلاق">✕</button>
+    </div>
+    <p id="supportIntro" class="shopRule"></p>
+    <ul id="supportPrices" class="shopList"></ul>
+    <div class="supportContact">
+      <a id="supportContact" class="btn primary" target="_blank" rel="noopener" hidden>راسلنا على إنستغرام للتفاصيل</a>
+    </div>
+    <h3 id="sponsorsHead" class="sponsorsHead" hidden>🌟 داعمو المدينة</h3>
+    <ul id="sponsorList" class="shopList"></ul>
+  </div>
+</div>
+
+<div id="appSheet" class="appSheet" role="dialog" aria-modal="true" aria-label="تطبيق حارتنا" aria-hidden="true">
+  <div class="panel appBox">
+    <div class="appHead">
+      <div class="tabs" role="tablist">
+        <button class="tab on" type="button" role="tab" data-tab="race">🏁 السباق</button>
+        <button class="tab" type="button" role="tab" data-tab="me">🏠 بيتي</button>
+        <button class="tab" type="button" role="tab" data-tab="shop">🛒 المتجر</button>
+      </div>
+      <button id="appClose" class="close" type="button" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="pane" data-pane="race"><div id="raceCard" class="appCard"></div></div>
+    <div class="pane" data-pane="me" hidden><div id="meCard" class="appCard"></div></div>
+    <div class="pane" data-pane="shop" hidden><div id="shopCard" class="appCard"></div></div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script type="module" src="./city.js"></script>
+<script src="./app.js"></script>
 <script type="module">
   import { initSyriaCityIntegration } from './models/app-integration.js';
 
-  const adminPanel = document.getElementById('admin-panel');
-  const adminClose = document.getElementById('adminClose');
-  if (adminClose && adminPanel) {
-    adminClose.addEventListener('click', () => {
-      adminPanel.hidden = true;
+  const waitForScene = () => new Promise((resolve) => {
+    const check = () => {
+      const s = window.__CITY_SCENE__ || (typeof scene !== 'undefined' ? scene : null);
+      const c = window.__CITY_CAMERA__ || (typeof camera !== 'undefined' ? camera : null);
+      const r = window.__CITY_RENDERER__ || (typeof renderer !== 'undefined' ? renderer : null);
+      if (s && c && r) resolve({ scene: s, camera: c, renderer: r });
+      else setTimeout(check, 250);
+    };
+    check();
+  });
+
+  waitForScene().then(({ scene, camera, renderer }) => {
+    initSyriaCityIntegration(scene, camera, renderer, {
+      enableFlyingPlanes: true,
+      enableParachutes: true,
+      enableDrones: true,
+      enableJet: true,
+      enableRocket: true,
+      enableTrain: true,
+      enableCars: true,
+      enableTrafficLights: true,
+      enableStreetLamps: true,
+      enableBuildingLights: true,
+      enableBoats: true,
+      enableFlags: true,
+      enableWaterfalls: true,
     });
-  }
-
-  // إظهار لوحة الإدارة فقط عند طلب وضع الإدارة (مثلاً ?admin=1 أو window.__IS_ADMIN__ = true)
-  const isAdminMode =
-    window.__IS_ADMIN__ === true ||
-    new URLSearchParams(location.search).get('admin') === '1';
-
-  if (isAdminMode && adminPanel) {
-    adminPanel.hidden = false;
-  }
-
-  let integrated = null;
-  function tryHookIntegration() {
-    if (integrated) return true;
-    const scene = window.__CITY_SCENE__ || window.scene;
-    const renderer = window.__CITY_RENDERER__ || window.renderer;
-    const camera = window.__CITY_CAMERA__ || window.camera;
-    if (!scene || !renderer) return false;
-
-    integrated = initSyriaCityIntegration({ scene, renderer, camera });
-    window.__SYRIA_INTEGRATION__ = integrated;
-
-    function tick() {
-      integrated.update();
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-    return true;
-  }
-
-  if (!tryHookIntegration()) {
-    const timer = setInterval(() => {
-      if (tryHookIntegration()) clearInterval(timer);
-    }, 300);
-    setTimeout(() => clearInterval(timer), 15000);
-  }
+  }).catch(() => {});
 </script>
 </body>
 </html>
