@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./style.css">
+<link id="mainStyle" rel="stylesheet" href="./style.css">
 <script type="importmap">
 {
   "imports": {
@@ -176,23 +176,43 @@
 
 <div id="toasts" class="toasts" aria-live="polite"></div>
 
+<script>
+  // تنبيه فوري إذا فشل تحميل ملف التنسيق style.css
+  document.getElementById('mainStyle')?.addEventListener('error', () => {
+    const toasts = document.getElementById('toasts');
+    if (toasts) {
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#7f1d1d;color:#fff;padding:10px 14px;border-radius:10px;font-family:Tajawal,sans-serif;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+      box.textContent = 'تعذر تحميل ملف style.css — تحقق من اسم الملف ومساره.';
+      toasts.appendChild(box);
+    }
+  });
+</script>
+
 <script type="module" src="./city.js"></script>
-<script src="./app.js"></script>
+<script src="./app.js" defer></script>
 <script type="module">
   import { initSyriaCityIntegration } from './models/app-integration.js';
 
+  let started = false;
   const waitForScene = () => new Promise((resolve) => {
+    const startTime = Date.now();
     const check = () => {
-      const s = window.__CITY_SCENE__ || (typeof scene !== 'undefined' ? scene : null);
-      const c = window.__CITY_CAMERA__ || (typeof camera !== 'undefined' ? camera : null);
-      const r = window.__CITY_RENDERER__ || (typeof renderer !== 'undefined' ? renderer : null);
-      if (s && c && r) resolve({ scene: s, camera: c, renderer: r });
-      else setTimeout(check, 250);
+      const s = window.__CITY_SCENE__ || (typeof globalThis.scene !== 'undefined' ? globalThis.scene : null);
+      const c = window.__CITY_CAMERA__ || (typeof globalThis.camera !== 'undefined' ? globalThis.camera : null);
+      const r = window.__CITY_RENDERER__ || (typeof globalThis.renderer !== 'undefined' ? globalThis.renderer : null);
+      if (s && c && r) {
+        resolve({ scene: s, camera: c, renderer: r });
+      } else if (Date.now() - startTime < 15000) {
+        setTimeout(check, 250);
+      }
     };
     check();
   });
 
   waitForScene().then(({ scene, camera, renderer }) => {
+    if (started) return;
+    started = true;
     initSyriaCityIntegration(scene, camera, renderer, {
       enableFlyingPlanes: true,
       enableParachutes: true,
@@ -208,7 +228,9 @@
       enableFlags: true,
       enableWaterfalls: true,
     });
-  }).catch(() => {});
+  }).catch((err) => {
+    console.warn('تعذر تشغيل تكامل المدينة:', err);
+  });
 </script>
 </body>
 </html>
