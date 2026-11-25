@@ -2,6 +2,8 @@ import * as THREE from 'three';
 // Pictures in img/: a relative path (works under any folder) + a version that changes every minute,
 // so a picture replaced in the admin panel shows up instead of the browser's old copy.
 const IMG = (name) => 'img/' + name + '?v=' + Math.floor(Date.now() / 60000);
+import { createParty } from './party.js';
+import { HOSPITAL_ZONE } from './models/hospital.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getConfig, getHousesData } from './db.js'; // البيانات من Firebase (مع رجوع للملفات الثابتة)
 import { bake, car as carModel, box as kitBox, tree as kitTree } from './models/kit.js';
