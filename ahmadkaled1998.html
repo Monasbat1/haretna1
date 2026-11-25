@@ -51,7 +51,7 @@ textarea{font-family:monospace;direction:ltr;min-height:260px}.dim{opacity:.45}s
 <div id="t_v" class="card" style="display:none">
 <b>🎆 احتفالية النصر — التحكم بالمناطق</b>
 <p><small>تظهر المؤثرات للزوار بعد الضغط على «🚀 نشر التغييرات». اختر المناطق التي تريد إقامة الاحتفال فيها.</small></p>
-<div class="row"><label><input id="vOn" type="checkbox" style="width:auto"> تفعيل الاحتفالية وإظهارها للزوار</label><label><input id="vFire" type="checkbox" style="width:auto"> ألعاب نارية</label><label><input id="vCrowd" type="checkbox" style="width:auto"> جمهور واحتفالات</label><label><input id="vMusic" type="checkbox" style="width:auto"> إتاحة الموسيقى للزوار</label></div>
+<div class="row"><label><input id="vOn" type="checkbox" style="width:auto"> تفعيل الاحتفالية / حفل افتتاح المشفى وإظهاره للزوار</label><label><input id="vFire" type="checkbox" style="width:auto"> ألعاب نارية</label><label><input id="vCrowd" type="checkbox" style="width:auto"> جمهور واحتفالات</label><label><input id="vMusic" type="checkbox" style="width:auto"> إتاحة الموسيقى للزوار</label></div>
 <hr><b>📍 حدد المناطق</b><div id="vZones" class="row" style="margin-top:8px"></div>
 <div class="bar"><button class="g" onclick="vAll(true)">تحديد كل المناطق</button><button class="g" onclick="vAll(false)">إلغاء التحديد</button><button class="ok" onclick="vApply()">حفظ الإعدادات (ثم اضغط نشر)</button></div>
 <small>ملاحظة: الصوت لا يبدأ تلقائياً؛ يضغط الزائر زر تشغيل الموسيقى داخل المدينة احتراماً لإعدادات المتصفح.</small>
@@ -150,7 +150,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 function msg(t){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',5000)}
 const GROUPS=[['👥 المدينة',{u:'👥 المستخدمون',c:'💬 من التعليقات'}],['🛍️ المتجر',{o:'🛒 الطلبات',st:'🏪 المتجر والدفع',vf:'✔️ التوثيق'}],['🏛️ المحتوى',{m:'🏛️ المعالم والطائرات',i:'🖼️ الصور',v:'🎆 احتفالية النصر'}],['💎 المال',{r:'💎 الرعاة والإعلانات',p:'🪙 النقاط والإعدادات'}],['⚙️ النظام',{s:'🚀 النشر'}]];
 const TABS=Object.assign({},...GROUPS.map(g=>g[1]));
-const VICTORY_ZONES=[['aleppo','حلب'],['idlib','إدلب'],['freedom','الحرية'],['homs','حمص'],['krak','وادي النصارى'],['marqab','بانياس'],['palmyra','تدمر']];
+const VICTORY_ZONES=[['aleppo','حلب'],['idlib','إدلب'],['freedom','الحرية'],['homs','حمص'],['krak','وادي النصارى'],['marqab','بانياس'],['palmyra','تدمر'],['hospital','مشفى معرة النعمان الوطني · حفل الافتتاح']];
 function vFill(){if(!S.cfg)return;const p=S.cfg.party||{};$('#vOn').checked=!!p.on;$('#vFire').checked=p.fireworks!==false;$('#vCrowd').checked=p.crowd!==false;$('#vMusic').checked=p.music!==false;const chosen=new Set(Array.isArray(p.zones)?p.zones:VICTORY_ZONES.map(z=>z[0]));$('#vZones').innerHTML=VICTORY_ZONES.map(([id,n])=>`<label style="display:flex;align-items:center;gap:7px;min-width:130px"><input type="checkbox" data-vzone="${id}" ${chosen.has(id)?'checked':''} style="width:auto"> ${n}</label>`).join('')}
 function vAll(on){document.querySelectorAll('[data-vzone]').forEach(x=>x.checked=on)}
 function vApply(){if(!S.cfg)return;S.cfg.party={on:$('#vOn').checked,fireworks:$('#vFire').checked,crowd:$('#vCrowd').checked,music:$('#vMusic').checked,zones:[...document.querySelectorAll('[data-vzone]:checked')].map(x=>x.dataset.vzone)};S.dirty=true;msg('تم تجهيز إعدادات الاحتفالية — اضغط 🚀 نشر لتظهر للزوار')}

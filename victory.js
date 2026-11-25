@@ -6,7 +6,7 @@ export function createVictory({ THREE, scene, zones, toast }) {
   function makeSite(z) {
     const g = new THREE.Group(); g.position.set(z.x, 0, z.z); root.add(g);
     // حشود مجسمة: 180 شخصاً حول كل ساحة (جسم + رأس) مع ألوان احتفالية.
-    const crowd=new THREE.Group(), count=180, dummy=new THREE.Object3D();
+    const crowd=new THREE.Group(), count=420, dummy=new THREE.Object3D();
     const bodies=new THREE.InstancedMesh(new THREE.CylinderGeometry(.42,.58,2.5,6),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.8}),count);
     const heads=new THREE.InstancedMesh(new THREE.SphereGeometry(.48,7,6),new THREE.MeshStandardMaterial({color:0xf0c7a2,roughness:.9}),count);
     for(let i=0;i<count;i++){
