@@ -122,7 +122,7 @@ let exists = () => true, nameWait = null;
 function ask(msg) { // يطلب اسم البيت ويحجزه
   return new Promise((resolve) => {
     const sheet = ensureSheet(); open(sheet);
-    const L = sheet._list; L.replaceChildren(); sheet._send.style.display = 'none'; sheet._tabs.style.display = 'none'; sheet._box.style.display = 'none'; sheet._chips.style.display = 'none';
+    const L = sheet._list; L.replaceChildren(); sheet._send.style.display = 'none'; sheet._tabs.style.display = ''; for (const b of sheet._tabs.children) b.style.display = b.classList.contains('x') ? '' : 'none'; sheet._box.style.display = 'none'; sheet._chips.style.display = 'none'; /* ✕ stays so the dialog can be closed */
     L.append(h('div', 'hz-note', msg || '🏠 اكتب اسم حسابك على إنستغرام (صاحب بيت بالمدينة) لتدخل الدردشة وتتجول بشخصيتك.'));
     const box = h('div', 'hz-box'), inp = h('input'), go = h('button', '', 'دخول'), err = h('div', 'hz-note hz-err');
     inp.placeholder = 'username'; inp.dir = 'ltr'; inp.autocapitalize = 'none'; inp.spellcheck = false;
@@ -181,7 +181,7 @@ function bubble(list, u, text, mine) {
 }
 async function render() {
   const s = sheetEl; if (!s || !s.classList.contains('show') || !me()) return;
-  s._tabs.style.display = ''; s._send.style.display = ''; s._in.disabled = false;
+  s._tabs.style.display = ''; for (const b of s._tabs.children) b.style.display = ''; s._send.style.display = ''; s._in.disabled = false;
   const pub = view.tab === 'pub'; s._box.style.display = pub ? 'none' : ''; s._chips.style.display = pub ? 'none' : '';
   const L = s._list, k = key(me());
   try {
