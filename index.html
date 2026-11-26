@@ -209,8 +209,16 @@
 } }
 </script>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
+  <!-- Sentry: مراقبة أخطاء حارتنا -->
+<script defer src="https://browser.sentry-cdn.com/11.18.0/bundle.min.js" crossorigin="anonymous"></script>
+<script defer src="sentry-config.js"></script>
+<script defer src="sentry-init.js"></script>
 </head>
 <body>
+  <!-- Sentry: مراقبة أخطاء حارتنا -->
+<script defer src="https://browser.sentry-cdn.com/11.18.0/bundle.min.js" crossorigin="anonymous"></script>
+<script defer src="sentry-config.js"></script>
+<script defer src="sentry-init.js"></script>
 <script>
 (function(){
 var b=document.createElement('pre');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b02a37;color:#fff;font:12px monospace;padding:8px;margin:0;max-height:40vh;overflow:auto;white-space:pre-wrap;direction:ltr;display:none';
