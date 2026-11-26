@@ -343,6 +343,10 @@ addEventListener('unhandledrejection',function(e){s('PROMISE: '+(e.reason&&(e.re
 
 <p class="panel loading" id="loading" role="status">🏗️ عم نجهّز المدينة…</p>
 <div class="toasts" id="toasts"></div>
+<!-- Sentry: مراقبة أخطاء حارتنا -->
+<script src="https://browser.sentry-cdn.com/11.18.0/bundle.min.js" crossorigin="anonymous"></script>
+<script src="sentry-config.js"></script>
+<script src="sentry-init.js"></script>
 
 <script type="module" src="app.js"></script>
 <script type="module" src="city.js"></script>
