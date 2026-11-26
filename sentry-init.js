@@ -1,12 +1,17 @@
-/* مراقبة أخطاء واجهة حارتنا عبر Sentry.
- * لا يبدأ الإرسال قبل وضع DSN صالح في sentry-config.js.
- * لا يتم تفعيل Session Replay أو جمع بيانات شخصية افتراضياً.
+/*
+ * مراقبة أخطاء واجهة حارتنا عبر Sentry.
+ * يتطلب تحميل مكتبة Sentry أولاً، ثم sentry-config.js.
+ * لا يتم تفعيل Session Replay أو جمع البيانات الشخصية افتراضياً.
  */
 (function () {
   'use strict';
 
   var dsn = String(window.HARTNA_SENTRY_DSN || '').trim();
-  if (!dsn || !window.Sentry || typeof window.Sentry.init !== 'function') return;
+
+  // لا تبدأ المراقبة إذا لم تكن المكتبة أو قيمة DSN متوفرة.
+  if (!dsn || !window.Sentry || typeof window.Sentry.init !== 'function') {
+    return;
+  }
 
   window.Sentry.init({
     dsn: dsn,
@@ -15,31 +20,35 @@
     sendDefaultPii: false,
     maxBreadcrumbs: 30,
     tracesSampleRate: 0,
+
+    // تقليل البيانات الحساسة قبل إرسال الحدث.
     beforeSend: function (event) {
-      // لا نرسل معاملات الروابط أو أجزاءها التي قد تحتوي رموزاً أو بيانات خاصة.
-      if (event.request && typeof event.request.url === 'string') {
-        try {
-          var url = new URL(event.request.url, location.origin);
-          event.request.url = url.origin + url.pathname;
-        } catch (_) {
-          event.request.url = location.origin + '/';
-        }
-      }
       if (event.request) {
+        if (typeof event.request.url === 'string') {
+          try {
+            var url = new URL(event.request.url, location.origin);
+            event.request.url = url.origin + url.pathname;
+          } catch (_) {
+            event.request.url = location.origin + '/';
+          }
+        }
+
         delete event.request.cookies;
         delete event.request.headers;
         delete event.request.data;
         delete event.request.query_string;
       }
+
       delete event.user;
       return event;
     }
   });
 
-  // وسيلة اختبار يدوية بعد التثبيت: window.hartnaSentryTest()
+  // اختبار يدوي: نفّذ window.hartnaSentryTest() من وحدة تحكم المتصفح.
+  // يرسل استثناء اختبارياً يظهر عادةً ضمن Issues في Sentry.
   window.hartnaSentryTest = function () {
-    if (window.Sentry && typeof window.Sentry.captureMessage === 'function') {
-      window.Sentry.captureMessage('اختبار اتصال Sentry من حارتنا', 'info');
+    if (window.Sentry && typeof window.Sentry.captureException === 'function') {
+      window.Sentry.captureException(new Error('اختبار اتصال Sentry من حارتنا'));
       return true;
     }
     return false;
