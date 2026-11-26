@@ -1,7 +1,7 @@
 {
   "rules": {
-    ".read": "auth != null && auth.uid === 'ADMIN_UID_HERE'",
-    ".write": "auth != null && auth.uid === 'ADMIN_UID_HERE'",
+    ".read": "auth != null && auth.uid === 'o04AV3VhIkafLp1001y4jl4mrVu1'",
+    ".write": "auth != null && auth.uid === 'o04AV3VhIkafLp1001y4jl4mrVu1'",
     "city": {
       ".read": true,
       "config": {
@@ -18,9 +18,9 @@
       }
     },
     "pending": {
-      ".read": "auth != null && (auth.uid === 'ADMIN_UID_HERE' || auth.uid === 'BOT_UID_HERE')",
+      ".read": "auth != null && (auth.uid === 'o04AV3VhIkafLp1001y4jl4mrVu1' || auth.uid === 'efa3f27bcfa35f9fd221036e64e7a377')",
       "$k": {
-        ".write": "auth != null && auth.uid === 'BOT_UID_HERE' && !data.exists()",
+        ".write": "auth != null && auth.uid === 'efa3f27bcfa35f9fd221036e64e7a377' && !data.exists()",
         ".validate": "newData.hasChildren(['u','c','t']) && newData.child('u').isString() && newData.child('u').val().length <= 40 && newData.child('c').isString() && newData.child('c').val().length == 2 && newData.child('t').isNumber()",
         "$f": {
           ".validate": "$f === 'u' || $f === 'c' || $f === 't'"
