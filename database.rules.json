@@ -18,7 +18,7 @@
       }
     },
     "pending": {
-      ".read": true,
+      ".read": "auth != null && (auth.uid === 'ADMIN_UID_HERE' || auth.uid === 'BOT_UID_HERE')",
       "$k": {
         ".write": "auth != null && auth.uid === 'BOT_UID_HERE' && !data.exists()",
         ".validate": "newData.hasChildren(['u','c','t']) && newData.child('u').isString() && newData.child('u').val().length <= 40 && newData.child('c').isString() && newData.child('c').val().length == 2 && newData.child('t').isNumber()",

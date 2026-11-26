@@ -67,8 +67,12 @@ async function botToken(env) {
 async function countries() {
   try {
     const r = await fetch(`${DB}/city/config.json`);
-    const c = r.ok ? JSON.parse(await r.json()) : null;
-    if (c && c.countries) return { ...DEFAULT_COUNTRIES, ...c.countries };
+    const raw = r.ok ? await r.json() : null;
+    // Firebase stores city/config as a JSON string; tolerate an object too.
+    const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (c && c.countries && typeof c.countries === 'object' && !Array.isArray(c.countries)) {
+      return { ...DEFAULT_COUNTRIES, ...c.countries };
+    }
   } catch (e) { /* نستخدم القائمة المدمجة */ }
   return DEFAULT_COUNTRIES;
 }
@@ -77,15 +81,20 @@ async function countries() {
 async function addPending(username, code, env) {
   const key = username.replace(/\./g, ',');
   const url = `${DB}/pending/${encodeURIComponent(key)}.json`;
-  const have = await (await fetch(url)).json();
-  if (have) return 'exists';
-  const res = await fetch(`${url}?auth=${encodeURIComponent(await botToken(env))}`, {
+  // Read with the bot identity: pending usernames must not be publicly readable.
+  const auth = encodeURIComponent(await botToken(env));
+  const haveRes = await fetch(`${url}?auth=${auth}`, { cache: 'no-store' });
+  if (!haveRes.ok) throw new Error('firebase read ' + haveRes.status);
+  if (await haveRes.json()) return 'exists';
+  const res = await fetch(`${url}?auth=${auth}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ u: username, c: code, t: Date.now() }),
   });
   if (res.ok) return 'added';
-  if (res.status === 401 || res.status === 403) { // غالباً سبقه طلب آخر بنفس الاسم
-    if (await (await fetch(url)).json()) return 'exists';
+  if (res.status === 401 || res.status === 403) {
+    // Another webhook may have created the same username at the same time.
+    const check = await fetch(`${url}?auth=${auth}`, { cache: 'no-store' });
+    if (check.ok && await check.json()) return 'exists';
   }
   throw new Error('firebase write ' + res.status);
 }
